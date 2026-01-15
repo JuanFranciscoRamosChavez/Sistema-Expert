@@ -35,7 +35,7 @@ export function BudgetChart({ projects }: Props) {
 
   // 3. PREPARAR DATOS
   const data = topProjects.map(project => ({
-    name: project.nombre.length > 20 ? project.nombre.substring(0, 20) + '...' : project.nombre,
+    name: project.nombre.length > 15 ? project.nombre.substring(0, 15) + '...' : project.nombre, // Recorte un poco más corto para móviles
     fullName: project.nombre,
     presupuesto: project.realBudget,
     devengado: project.devengado,
@@ -85,8 +85,10 @@ export function BudgetChart({ projects }: Props) {
   };
 
   return (
-    <div className="bg-card rounded-xl border border-border shadow-sm flex flex-col h-[400px] animate-fade-in delay-200">
-      <div className="p-6 border-b border-border">
+    // CAMBIO DE ALTURA: h-[350px] en móvil, md:h-[400px] en escritorio.
+    // Esto iguala exactamente al componente ProjectsStatusChart.
+    <div className="bg-card rounded-xl border border-border shadow-sm flex flex-col h-[350px] md:h-[400px] animate-fade-in delay-200">
+      <div className="p-5 md:p-6 border-b border-border">
         <h3 className="font-display font-bold text-lg text-foreground">Top 6 Proyectos (Devengado)</h3>
         <p className="text-sm text-muted-foreground">Avance financiero real vs Presupuesto Total</p>
       </div>
@@ -104,7 +106,8 @@ export function BudgetChart({ projects }: Props) {
             <XAxis 
               type="number" 
               tickFormatter={formatMoney} 
-              tick={{ fontSize: 10, fill: 'hsl(var(--foreground))', fontWeight: 500 }} 
+              // COLOR NEGRO (foreground) para contraste máximo
+              tick={{ fontSize: 10, fill: 'hsl(var(--foreground))', fontWeight: 600 }} 
               axisLine={false}
               tickLine={false}
             />
@@ -113,6 +116,7 @@ export function BudgetChart({ projects }: Props) {
               dataKey="name" 
               type="category" 
               width={140} 
+              // COLOR NEGRO (foreground)
               tick={{ fontSize: 11, fill: 'hsl(var(--foreground))', fontWeight: 600 }} 
               interval={0}
               axisLine={false}
@@ -127,30 +131,31 @@ export function BudgetChart({ projects }: Props) {
               iconType="circle"
               iconSize={8}
               wrapperStyle={{ fontSize: '12px', paddingBottom: '10px' }}
-              formatter={(value) => <span style={{ color: 'hsl(var(--foreground))', fontWeight: 500 }}>{value}</span>}
+              // LEYENDA NEGRA
+              formatter={(value) => <span style={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}>{value}</span>}
               payload={[
-                { value: 'Presupuesto Total', type: 'circle', color: 'hsl(var(--muted))' }, // El icono sigue gris (coincide con barra)
+                { value: 'Presupuesto Total', type: 'circle', color: '#94a3b8' }, 
                 { value: 'Devengado (Avance)', type: 'circle', color: '#10b981' },
-                { value: 'Sobrecosto / Excedente', type: 'circle', color: '#ef4444' }
+                { value: 'Sobrecosto', type: 'circle', color: '#ef4444' }
               ]}
             />
             
-            {/* Barra de Fondo (Presupuesto) - Muted/Gris */}
+            {/* BARRA DE FONDO: Gris un poco más oscuro (#cbd5e1 - Slate 300) para que se note bien */}
             <Bar 
               dataKey="presupuesto" 
               name="Presupuesto Total" 
-              fill="hsl(var(--muted))" 
+              fill="#cbd5e1" 
               radius={[0, 4, 4, 0]} 
-              barSize={24} 
+              barSize={20} 
               isAnimationActive={false} 
             />
 
-            {/* Barra de Frente (Devengado) */}
+            {/* BARRA DE PROGRESO */}
             <Bar 
               dataKey="devengado" 
               name="Devengado" 
               radius={[0, 2, 2, 0]} 
-              barSize={12} 
+              barSize={10} 
             >
               {data.map((entry, index) => (
                 <Cell 
