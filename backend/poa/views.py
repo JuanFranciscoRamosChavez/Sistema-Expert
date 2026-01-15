@@ -11,13 +11,14 @@ class ObraViewSet(viewsets.ModelViewSet):
 
 class DashboardResumenView(APIView):
 	"""
-	Endpoint optimizado para KPIs del Dashboard.
+	API para Panel Ejecutivo (KPIs)
 	"""
 	def get(self, request):
-		# 1. Total Proyectos
+		# KPI 1: Total de Proyectos (Suma total de registros)
 		total_proyectos = Obra.objects.count()
 
-		# 2. Presupuesto Total y Beneficiarios (Aggregation)
+		# KPI 2: Presupuesto Total
+		# Regla: Si Modificado (Col H) > 0, usarlo. Si no, usar Anteproyecto (Col I).
 		agregados = Obra.objects.aggregate(
 			presupuesto_total=Sum(
 				Case(
@@ -26,21 +27,27 @@ class DashboardResumenView(APIView):
 					output_field=DecimalField()
 				)
 			),
+			# KPI 3: Beneficiarios (Suma de la columna limpiada 'beneficiarios_num')
 			total_beneficiarios=Sum('beneficiarios_num')
 		)
 		
 		presupuesto_total = agregados['presupuesto_total'] or 0
 		total_beneficiarios = agregados['total_beneficiarios'] or 0
 
-		# 3. Atención Requerida (Riesgo Alto o Semáforos Rojos)
+		# KPI 4: Proyectos en Riesgo
+		# Regla: Semáforo Rojo OR Urgencia Alta con Semáforo alto (Riesgo alto)
+		# Interpretación: Nivel de Riesgo >= 4 O algún semáforo operativo en ROJO
+		# O Urgencia alta (>=4) con poco avance (lógica de semáforo rojo del serializer)
 		proyectos_riesgo = Obra.objects.filter(
-			Q(riesgo_nivel__gte=4) |
+			Q(riesgo_nivel__gte=4) | # Riesgo Alto/Crítico
 			Q(viabilidad_tecnica_semaforo='ROJO') |
 			Q(viabilidad_presupuestal_semaforo='ROJO') |
-			Q(viabilidad_juridica_semaforo='ROJO')
+			Q(viabilidad_juridica_semaforo='ROJO') |
+			# Urgencia alta con problemas (podemos refinar esto si la regla cambia)
+			Q(urgencia__gte=4, avance_fisico_pct__lt=20)
 		).count()
 
-		# 4. En Ejecución (Avance Financiero > 0)
+		# Adicional: En Ejecución (Para gráficas secundarias)
 		en_ejecucion = Obra.objects.filter(avance_financiero_pct__gt=0).count()
 
 		return Response({

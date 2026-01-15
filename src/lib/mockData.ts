@@ -71,11 +71,32 @@ export const getPriorityLabel = (priority: Priority): string => {
 };
 
 export const formatCurrency = (amount: number): string => {
+  // Si es mayor a 1,000 millones (Billions en inglés, Miles de Millones en español)
+  if (amount >= 1000000000) {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount / 1000000000) + ' MMD'; // MMD = Miles de Millones de Dólares/Pesos
+  }
+  
+  // Si es mayor a 1 millón
+  if (amount >= 1000000) {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount / 1000000) + ' MDP'; // MDP = Millones de Pesos
+  }
+
+  // Formato estándar para montos normales (con centavos siempre)
   return new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: 'MXN',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
 };
 
@@ -83,4 +104,4 @@ export const formatNumber = (num: number): string => {
   return new Intl.NumberFormat('es-MX').format(num);
 };
 
-export const mockProjects: Project[] = []; // Se queda vacío, usaremos API
+export const mockProjects: Project[] = [];

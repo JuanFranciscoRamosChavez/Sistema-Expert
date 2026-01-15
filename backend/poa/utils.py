@@ -1,78 +1,94 @@
-# backend/poa/utils.py
 import pandas as pd
 import numpy as np
 import re
 
 # 1. Catálogo de Escalas
 CATALOGO_ESCALAS = {
-    "muy bajo": 1, 
-    "bajo": 2, 
-    "regular": 3, "medio": 3, "media": 3,
-    "alto": 4, "alta": 4, 
-    "muy alto": 5, "muy alta": 5,
-    "critico": 5, "critica": 5, "urgente": 5, "prioritario": 5,
-    "rojo": 5, "amarillo": 3, "verde": 1
+	"muy bajo": 1, 
+	"bajo": 2, 
+	"regular": 3, "medio": 3, "media": 3,
+	"alto": 4, "alta": 4, 
+	"muy alto": 5, "muy alta": 5,
+	"critico": 5, "critica": 5, "urgente": 5, "prioritario": 5,
+	"rojo": 5, "amarillo": 3, "verde": 1
 }
 
-# 2. Limpieza de Dinero
 def clean_money_vectorized(valor):
-    if pd.isna(valor): return 0.0
-    val_str = str(valor).replace('$', '').replace(',', '')
-    try:
-        return float(val_str)
-    except:
-        return 0.0
+	"""
+	Limpia y estandariza montos financieros.
+	Entrada: 35999.76998888 -> Salida: 35999.77
+	Entrada: "$ 1,990.6"    -> Salida: 1990.60
+	"""
+	if pd.isna(valor): return 0.0
+	
+	# Convertir a string, quitar símbolos de moneda y comas
+	val_str = str(valor).replace('$', '').replace(',', '').strip()
+	
+	try:
+		# Convertir a float
+		numero = float(val_str)
+		# Redondear a 2 decimales estrictos (regla financiera)
+		return round(numero, 2)
+	except:
+		return 0.0
 
-# 3. Limpieza de Porcentajes (ESTA ES LA QUE FALTABA)
 def clean_percentage_vectorized(valor):
-    if pd.isna(valor): return 0.0
-    val_str = str(valor).replace('%', '').strip()
-    try:
-        return float(val_str)
-    except:
-        return 0.0
+	if pd.isna(valor): return 0.0
+	val_str = str(valor).replace('%', '').strip()
+	try:
+		return float(val_str)
+	except:
+		return 0.0
 
-# 4. Interpretación de Escalas
 def interpretar_escala_flexible(valor):
-    """Devuelve el valor numérico (1-5)"""
-    if pd.isna(valor): return 1
-    val_str = str(valor).strip().lower()
-    
-    # Buscar número explícito
-    match = re.search(r'\b([1-5])\b', val_str)
-    if match: return int(match.group(1))
-    
-    # Buscar palabras clave
-    for key, num in CATALOGO_ESCALAS.items():
-        if key in val_str: return num
-            
-    return 1 # Default
+	if pd.isna(valor): return 1
+	val_str = str(valor).strip().lower()
+	match = re.search(r'\b([1-5])\b', val_str)
+	if match: return int(match.group(1))
+	for key, num in CATALOGO_ESCALAS.items():
+		if key in val_str: return num
+	return 1
 
-def clean_beneficiarios_vectorized(valor):
-    """
-    Extrae el valor entero de una cadena de texto que contiene números y palabras.
-    
-    Lógica:
-    1. Si es nulo o vacío, retorna 0.
-    2. Convierte a string y elimina comas (separadores de miles).
-    3. Busca el primer patrón numérico continuo.
-    
-    Ejemplos:
-        "1,500 familias" -> 1500
-        "Aprox 500"      -> 500
-        "No aplica"      -> 0
-    """
-    if pd.isna(valor): return 0
-    
-    # Normalización básica: String, minúsculas y sin comas
-    val_str = str(valor).replace(',', '').strip()
-    
-    # Regex: Busca una secuencia de dígitos (\d+)
-    match = re.search(r'(\d+)', val_str)
-    
-    if match:
-        try:
-            return int(match.group(1))
-        except ValueError:
-            return 0
-    return 0
+# --- LÓGICA MEJORADA PARA ABREVIATURAS (1M, 10k) ---
+def clean_beneficiarios_advanced(valor):
+	"""
+	Limpia texto de beneficiarios detectando magnitudes y abreviaturas.
+	Soporta:
+	- "1M", "1.5 M", "2.5 millones" -> * 1,000,000
+	- "10k", "10 K", "144 mil" -> * 1,000
+	- "1.2 miles de millones" -> * 1,000,000,000
+	- "500 personas" -> * 1 (Ignora texto que no sea de magnitud)
+	"""
+	if pd.isna(valor): return 0
+	
+	# 1. Normalización: minúsculas, sin comas
+	text = str(valor).lower().replace(',', '').replace('ó', 'o').strip()
+	
+	multiplier = 1
+	
+	# 2. Detección de Multiplicadores por prioridad (Mayor a menor)
+	
+	# Billones / Miles de millones
+	if 'miles de millones' in text or 'billones' in text or 'mmd' in text:
+		multiplier = 1_000_000_000
+		
+	# Millones (Palabra completa o abreviatura "1m", "1 m")
+	# Regex: Busca un número seguido opcionalmente de espacio y una 'm' sola al final de palabra
+	elif 'millon' in text or re.search(r'\d+\s*m\b', text):
+		multiplier = 1_000_000
+		
+	# Miles (Palabra completa o abreviatura "10k", "10 k")
+	elif 'mil' in text or re.search(r'\d+\s*k\b', text):
+		multiplier = 1_000
+		
+	# 3. Extracción del número (soporta decimales "1.5")
+	match = re.search(r'(\d+(\.\d+)?)', text)
+	
+	if match:
+		try:
+			numero = float(match.group(1))
+			return int(numero * multiplier)
+		except ValueError:
+			return 0
+			
+	return 0

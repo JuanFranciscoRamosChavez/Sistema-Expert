@@ -5,11 +5,11 @@ interface KPICardProps {
 	title: string;
 	value: string | number;
 	icon: LucideIcon;
-	subtitle?: string;      
+	subtitle?: string;
 	trend?: string | { value: number; label: string };
 	trendUp?: boolean;
-	variant?: 'default' | 'success' | 'info' | 'danger' | 'warning'; // Agregado
-	delay?: number;        
+	variant?: 'default' | 'success' | 'info' | 'danger' | 'warning';
+	delay?: number;
 	alert?: boolean;
 }
 
