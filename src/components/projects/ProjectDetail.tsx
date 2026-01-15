@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Project } from '@/lib/mockData';
 import { APP_COLORS, STATUS_COLORS } from '@/lib/theme';
@@ -37,12 +36,14 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
 	};
 
 	return (
-		// AJUSTE 1: w-full y max-w-[95vw] aseguran que quepa en celulares. 
-		// max-h-[90vh] evita que sea más alto que la pantalla.
-		<DialogContent className="w-full max-w-[95vw] md:max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 bg-card border-border overflow-hidden">
+		// --- CORRECCIÓN RESPONSIVA ---
+		// 1. w-[95vw]: Ocupa el 95% del ancho en móviles (casi toda la pantalla).
+		// 2. max-h-[85vh]: Altura segura para que no se corte con la barra del navegador móvil.
+		// 3. overflow-hidden: Contiene todo para que solo el cuerpo haga scroll.
+		<DialogContent className="w-[95vw] max-w-[95vw] md:max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0 bg-card border-border overflow-hidden">
 			
-			{/* HEADER FIJO (No hace scroll) */}
-			<DialogHeader className="p-4 md:p-6 pb-4 border-b border-border bg-card shrink-0">
+			{/* HEADER FIJO (No se mueve al hacer scroll) */}
+			<DialogHeader className="p-4 md:p-6 pb-4 border-b border-border bg-card shrink-0 z-10">
 				<div className="flex flex-col gap-3 md:gap-2">
 					{/* Badges de estado */}
 					<div className="flex flex-wrap items-center gap-2">
@@ -77,22 +78,22 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
 				</div>
 			</DialogHeader>
 
-			{/* CUERPO CON SCROLL (El contenido se mueve, el header no) */}
-			<ScrollArea className="flex-1">
-				<div className="p-4 md:p-6 space-y-6 md:space-y-8">
+			{/* CUERPO CON SCROLL NATIVO (Fix para móviles) */}
+			{/* 'flex-1' para llenar el espacio restante, 'overflow-y-auto' para scroll nativo suave */}
+			<div className="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth overscroll-contain">
+				<div className="space-y-6 md:space-y-8 pb-4">
 					
-					{/* 1. OBJETIVO (Texto descriptivo) */}
+					{/* 1. OBJETIVO */}
 					<div className="space-y-3">
 						<H3 className="text-sm md:text-base flex items-center gap-2">
 							<Target className="h-4 w-4 text-primary" />
 							Objetivo e Impacto
 						</H3>
 						<div className="bg-muted/30 p-4 rounded-lg border border-border">
-							<P className="mt-0 text-xs md:text-sm leading-relaxed text-muted-foreground">
+							<P className="mt-0 text-xs md:text-sm leading-relaxed text-muted-foreground text-pretty">
 								{project.descripcion || "Sin descripción detallada disponible para este proyecto."}
 							</P>
 							
-							{/* AJUSTE 2: Grid 1 columna en móvil, 2 en escritorio */}
 							<div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-border/50">
 								<div>
 									<Small className="block mb-1 opacity-70">Beneficiarios Directos</Small>
@@ -174,7 +175,6 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
 
 					{/* 3. RESPONSABLE Y RIESGOS */}
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-						{/* Responsable */}
 						<div className="space-y-2">
 							<H3 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-2">
 								<User className="h-3.5 w-3.5" /> Responsable Operativo
@@ -192,7 +192,6 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
 							</div>
 						</div>
 
-						{/* Riesgos (Solo si existen) */}
 						{(project.riesgos && project.riesgos.length > 0 && project.riesgos[0] !== "") && (
 							<div className="space-y-2">
 								<H3 className="text-xs uppercase tracking-wider text-destructive font-semibold flex items-center gap-2">
@@ -211,7 +210,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
 					</div>
 
 				</div>
-			</ScrollArea>
+			</div>
 		</DialogContent>
 	);
 }
