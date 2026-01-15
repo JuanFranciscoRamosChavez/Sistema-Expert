@@ -1,3 +1,4 @@
+// 1. Lo que recibes del Backend (Tu estructura exacta)
 export interface APIProject {
 	id: number;
 	id_excel: number;
@@ -16,7 +17,7 @@ export interface APIProject {
 	
 	// Datos crudos
 	urgencia_num: number;
-	riesgo_nivel: number;
+	riesgo_nivel: number; // <--- ESTE ES EL DATO CLAVE
 	beneficiarios_num: number;
 	
 	// Fechas
@@ -43,4 +44,26 @@ export interface KPIData {
 	beneficiarios: number;
 	atencion_requerida: number;
 	en_ejecucion: number;
+}
+
+// 2. Lo que usa el Frontend (Interfaz limpia para componentes)
+export interface Project {
+	id: number;
+	nombre: string;       // Viene de 'programa'
+	status: string;       // Viene de 'estatus_general' o 'semaforo'
+	avance: number;       // Viene de 'avance_fisico_pct'
+	presupuesto: number;  // Viene de 'presupuesto_final'
+	ejecutado: number;    // Viene de 'monto_ejecutado'
+	responsable: string;  // Viene de 'responsable_operativo'
+	direccion: string;    // Viene de 'area_responsable'
+	riesgos: string[];    // Convertimos 'problemas_identificados' a array
+	descripcion: string;  // Viene de 'impacto_social_desc'
+	fechaInicio: string;
+	fechaFin: string;
+	ubicacion: string;
+	zona: string;
+	beneficiarios: number;
+	prioridad: string;    // Derivado de 'urgencia_num'
+	riesgo: number;       // Mapeado directo de 'riesgo_nivel'
+	viabilidad?: string;
 }

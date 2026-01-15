@@ -60,6 +60,7 @@ export function mapApiToUiProject(apiProject: APIProject): Project {
     status, // Aquí va el estatus corregido
     prioridad,
     viabilidad,
+    riesgo: nivelRiesgo,
     fechaInicio: apiProject.fecha_inicio_prog || new Date().toISOString(),
     fechaFin: apiProject.fecha_termino_prog || new Date().toISOString(),
     beneficiarios: apiProject.beneficiarios_num || 0,

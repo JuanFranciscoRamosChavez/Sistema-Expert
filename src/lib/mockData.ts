@@ -27,26 +27,8 @@ export interface Project {
     actual: number;
     unidad: string;
   }[];
+  riesgo: number;
 }
-
-// --- Listas Estáticas Restauradas (Necesarias para filtros) ---
-export const direcciones = [
-  'Dirección de Obras Públicas',
-  'Dirección de Desarrollo Social',
-  'Dirección de Servicios Públicos',
-  'Dirección de Medio Ambiente',
-  'Dirección de Innovación',
-  'Dirección de Desarrollo Económico',
-  'Dirección de Movilidad',
-];
-
-export const zonas = [
-  { id: 'norte', nombre: 'Zona Norte', poblacion: 85000 },
-  { id: 'sur', nombre: 'Zona Sur', poblacion: 72000 },
-  { id: 'centro', nombre: 'Centro Histórico', poblacion: 45000 },
-  { id: 'oriente', nombre: 'Zona Oriente', poblacion: 63000 },
-  { id: 'poniente', nombre: 'Zona Poniente', poblacion: 55000 },
-];
 
 // --- Helpers ---
 export const getStatusLabel = (status: ProjectStatus): string => {
