@@ -8,9 +8,10 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, TrendingUp, AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Project } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
+import { APP_COLORS, PRIORITY_COLORS } from "@/lib/theme"; // <--- IMPORTACIÓN DEL TEMA
 
 interface Props {
   projects: Project[];
@@ -18,21 +19,33 @@ interface Props {
 
 export function CriticalProjectsTable({ projects }: Props) {
   
-  // 1. FILTRADO Y ORDENAMIENTO DE PROYECTOS CRÍTICOS
+  // 1. FILTRADO Y ORDENAMIENTO
   const criticalProjects = projects
     .filter(p => 
       p.status === 'en_riesgo' || 
       p.prioridad === 'critica' || 
       p.prioridad === 'alta' ||
-      (p.viabilidad === 'baja') // También incluimos viabilidad baja como alerta
+      p.viabilidad === 'baja'
     )
     .sort((a, b) => {
-      // Ordenar: Primero Críticos, luego Alta Prioridad
       const scoreA = (a.prioridad === 'critica' ? 3 : 0) + (a.status === 'en_riesgo' ? 2 : 0);
       const scoreB = (b.prioridad === 'critica' ? 3 : 0) + (b.status === 'en_riesgo' ? 2 : 0);
       return scoreB - scoreA;
     })
-    .slice(0, 5); // Top 5 para no saturar
+    .slice(0, 5);
+
+  // --- LÓGICA DE COLORES CENTRALIZADA ---
+  const getRiskColor = (project: Project) => {
+    if (project.status === 'en_riesgo' || project.viabilidad === 'baja') {
+      return APP_COLORS.danger; // Rojo del tema
+    }
+    return APP_COLORS.warning;  // Amarillo del tema
+  };
+
+  const getPriorityColor = (priority: string) => {
+    // Mapeamos el string de prioridad al objeto de colores del tema
+    return PRIORITY_COLORS[priority as keyof typeof PRIORITY_COLORS] || APP_COLORS.neutral;
+  };
 
   if (criticalProjects.length === 0) {
     return (
@@ -53,7 +66,7 @@ export function CriticalProjectsTable({ projects }: Props) {
       <div className="p-6 border-b border-border flex justify-between items-center">
         <div>
           <h3 className="font-display font-bold text-lg flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
+            <AlertTriangle className="h-5 w-5" style={{ color: APP_COLORS.danger }} />
             Atención Prioritaria
           </h3>
           <p className="text-sm text-muted-foreground">
@@ -76,70 +89,76 @@ export function CriticalProjectsTable({ projects }: Props) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {criticalProjects.map((project) => (
-              <TableRow key={project.id} className="border-border hover:bg-muted/30">
-                
-                {/* COLUMNA 1: IDENTIFICACIÓN */}
-                <TableCell className="font-medium">
-                  <div className="flex flex-col gap-1">
-                    <span className="font-semibold text-foreground line-clamp-1" title={project.nombre}>
-                      {project.nombre}
-                    </span>
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary/50" />
-                      {project.responsable || "Sin Asignar"}
-                    </span>
-                  </div>
-                </TableCell>
+            {criticalProjects.map((project) => {
+              const riskColor = getRiskColor(project);
+              const priorityColor = getPriorityColor(project.prioridad);
 
-                {/* COLUMNA 2: RIESGO (Visual) */}
-                <TableCell>
-                  <div className={cn(
-                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border",
-                    project.viabilidad === 'baja' || project.status === 'en_riesgo'
-                      ? "bg-destructive/10 text-destructive border-destructive/20"
-                      : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                  )}>
-                    <AlertCircle className="w-3 h-3" />
-                    {project.status === 'en_riesgo' ? 'Crítico' : 'Alto'}
-                  </div>
-                </TableCell>
-
-                {/* COLUMNA 3: AVANCE (Barra) */}
-                <TableCell>
-                  <div className="w-full max-w-[140px] space-y-1.5">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground font-medium">Progreso</span>
-                      <span className="font-bold text-foreground">{project.avance.toFixed(1)}%</span>
+              return (
+                <TableRow key={project.id} className="border-border hover:bg-muted/30">
+                  
+                  {/* COLUMNA 1: IDENTIFICACIÓN */}
+                  <TableCell className="font-medium">
+                    <div className="flex flex-col gap-1">
+                      <span className="font-semibold text-foreground line-clamp-1" title={project.nombre}>
+                        {project.nombre}
+                      </span>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary/50" />
+                        {project.responsable || "Sin Asignar"}
+                      </span>
                     </div>
-                    {/* Barra Roja si es crítico, Amarilla si es advertencia */}
-                    <Progress 
-                      value={project.avance} 
-                      className="h-2 bg-muted" 
-                      indicatorClassName={cn(
-                        project.status === 'en_riesgo' ? "bg-destructive" : "bg-amber-500"
-                      )}
-                    />
-                  </div>
-                </TableCell>
+                  </TableCell>
 
-                {/* COLUMNA 4: PRIORIDAD (Badge) */}
-                <TableCell className="text-right">
-                  <Badge 
-                    variant="outline" 
-                    className={cn(
-                      "uppercase tracking-wider text-[10px] font-bold border",
-                      project.prioridad === 'critica' 
-                        ? "border-destructive text-destructive bg-destructive/5" 
-                        : "border-primary text-primary bg-primary/5"
-                    )}
-                  >
-                    {project.prioridad}
-                  </Badge>
-                </TableCell>
+                  {/* COLUMNA 2: RIESGO (Usando colores del tema) */}
+                  <TableCell>
+                    <div 
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border"
+                      style={{ 
+                        color: riskColor,
+                        borderColor: `${riskColor}40`, // 40 es alpha (transparencia) en HEX
+                        backgroundColor: `${riskColor}15` // Fondo muy suave
+                      }}
+                    >
+                      <AlertCircle className="w-3 h-3" />
+                      {project.status === 'en_riesgo' ? 'Crítico' : 'Alto'}
+                    </div>
+                  </TableCell>
 
-              </TableRow>
-            ))}
+                  {/* COLUMNA 3: AVANCE (Barra conectada al tema) */}
+                  <TableCell>
+                    <div className="w-full max-w-[140px] space-y-1.5">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground font-medium">Progreso</span>
+                        <span className="font-bold text-foreground">{project.avance.toFixed(1)}%</span>
+                      </div>
+                      
+                      {/* AQUI USAMOS LA NUEVA PROP indicatorColor */}
+                      <Progress 
+                        value={project.avance} 
+                        className="h-2 bg-muted" 
+                        indicatorColor={riskColor} // La barra toma el color del riesgo (Rojo o Amarillo)
+                      />
+                    </div>
+                  </TableCell>
+
+                  {/* COLUMNA 4: PRIORIDAD (Badge conectado al tema) */}
+                  <TableCell className="text-right">
+                    <Badge 
+                      variant="outline" 
+                      className="uppercase tracking-wider text-[10px] font-bold border"
+                      style={{
+                        color: priorityColor,
+                        borderColor: priorityColor,
+                        backgroundColor: `${priorityColor}10` // Fondo transparente
+                      }}
+                    >
+                      {project.prioridad}
+                    </Badge>
+                  </TableCell>
+
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>

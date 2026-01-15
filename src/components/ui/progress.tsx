@@ -5,9 +5,11 @@ import { cn } from "@/lib/utils"
 
 const Progress = React.forwardRef<
   React.ElementRef<typeof ProgressPrimitive.Root>,
-  // Aquí extendemos los tipos para aceptar indicatorClassName
-  React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root> & { indicatorClassName?: string }
->(({ className, value, indicatorClassName, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root> & { 
+    indicatorClassName?: string,
+    indicatorColor?: string // Nueva propiedad para color HEX directo
+  }
+>(({ className, value, indicatorClassName, indicatorColor, ...props }, ref) => (
   <ProgressPrimitive.Root
     ref={ref}
     className={cn(
@@ -17,9 +19,11 @@ const Progress = React.forwardRef<
     {...props}
   >
     <ProgressPrimitive.Indicator
-      // Aquí aplicamos la clase personalizada, permitiendo sobrescribir el color (bg-primary)
       className={cn("h-full w-full flex-1 bg-primary transition-all", indicatorClassName)}
-      style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+      style={{ 
+        transform: `translateX(-${100 - (value || 0)}%)`,
+        backgroundColor: indicatorColor // Aquí aplicamos el color del tema si existe
+      }}
     />
   </ProgressPrimitive.Root>
 ))
