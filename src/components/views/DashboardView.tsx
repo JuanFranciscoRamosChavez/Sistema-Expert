@@ -201,7 +201,7 @@ export function DashboardView() {
 				<div className="lg:col-span-2">
 					<CriticalProjectsTable projects={projects} />
 				</div>
-				<RecentActivity />
+				<RecentActivity projects={projects} />
 			</div>
 		</div>
 	);
