@@ -11,7 +11,8 @@ import { Progress } from "@/components/ui/progress";
 import { AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Project } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
-import { APP_COLORS, PRIORITY_COLORS } from "@/lib/theme"; // <--- IMPORTACIÓN DEL TEMA
+import { APP_COLORS, PRIORITY_COLORS } from "@/lib/theme"; 
+import { H3, Subtitle } from "@/components/ui/typography"; // <--- NUEVO IMPORT
 
 interface Props {
   projects: Project[];
@@ -19,7 +20,6 @@ interface Props {
 
 export function CriticalProjectsTable({ projects }: Props) {
   
-  // 1. FILTRADO Y ORDENAMIENTO
   const criticalProjects = projects
     .filter(p => 
       p.status === 'en_riesgo' || 
@@ -34,16 +34,14 @@ export function CriticalProjectsTable({ projects }: Props) {
     })
     .slice(0, 5);
 
-  // --- LÓGICA DE COLORES CENTRALIZADA ---
   const getRiskColor = (project: Project) => {
     if (project.status === 'en_riesgo' || project.viabilidad === 'baja') {
-      return APP_COLORS.danger; // Rojo del tema
+      return APP_COLORS.danger;
     }
-    return APP_COLORS.warning;  // Amarillo del tema
+    return APP_COLORS.warning;
   };
 
   const getPriorityColor = (priority: string) => {
-    // Mapeamos el string de prioridad al objeto de colores del tema
     return PRIORITY_COLORS[priority as keyof typeof PRIORITY_COLORS] || APP_COLORS.neutral;
   };
 
@@ -53,10 +51,10 @@ export function CriticalProjectsTable({ projects }: Props) {
         <div className="bg-emerald-500/10 p-4 rounded-full mb-3">
           <CheckCircle2 className="h-8 w-8 text-emerald-600" />
         </div>
-        <h3 className="font-display font-bold text-lg">Todo bajo control</h3>
-        <p className="text-sm text-muted-foreground mt-1 max-w-[250px]">
+        <H3 className="mt-3">Todo bajo control</H3>
+        <Subtitle className="mt-1 max-w-[250px]">
           No se detectaron proyectos con riesgo alto o urgencia crítica en este momento.
-        </p>
+        </Subtitle>
       </div>
     );
   }
@@ -65,13 +63,13 @@ export function CriticalProjectsTable({ projects }: Props) {
     <div className="bg-card rounded-xl border border-border shadow-sm h-full flex flex-col animate-fade-in delay-300">
       <div className="p-6 border-b border-border flex justify-between items-center">
         <div>
-          <h3 className="font-display font-bold text-lg flex items-center gap-2">
+          <H3 className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5" style={{ color: APP_COLORS.danger }} />
             Atención Prioritaria
-          </h3>
-          <p className="text-sm text-muted-foreground">
+          </H3>
+          <Subtitle>
             Proyectos con alto nivel de riesgo o urgencia crítica
-          </p>
+          </Subtitle>
         </div>
         <Badge variant="outline" className="text-xs font-mono">
           {criticalProjects.length} Detectados
@@ -96,7 +94,6 @@ export function CriticalProjectsTable({ projects }: Props) {
               return (
                 <TableRow key={project.id} className="border-border hover:bg-muted/30">
                   
-                  {/* COLUMNA 1: IDENTIFICACIÓN */}
                   <TableCell className="font-medium">
                     <div className="flex flex-col gap-1">
                       <span className="font-semibold text-foreground line-clamp-1" title={project.nombre}>
@@ -109,14 +106,13 @@ export function CriticalProjectsTable({ projects }: Props) {
                     </div>
                   </TableCell>
 
-                  {/* COLUMNA 2: RIESGO (Usando colores del tema) */}
                   <TableCell>
                     <div 
                       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border"
                       style={{ 
                         color: riskColor,
-                        borderColor: `${riskColor}40`, // 40 es alpha (transparencia) en HEX
-                        backgroundColor: `${riskColor}15` // Fondo muy suave
+                        borderColor: `${riskColor}40`,
+                        backgroundColor: `${riskColor}15`
                       }}
                     >
                       <AlertCircle className="w-3 h-3" />
@@ -124,7 +120,6 @@ export function CriticalProjectsTable({ projects }: Props) {
                     </div>
                   </TableCell>
 
-                  {/* COLUMNA 3: AVANCE (Barra conectada al tema) */}
                   <TableCell>
                     <div className="w-full max-w-[140px] space-y-1.5">
                       <div className="flex justify-between text-xs">
@@ -132,16 +127,14 @@ export function CriticalProjectsTable({ projects }: Props) {
                         <span className="font-bold text-foreground">{project.avance.toFixed(1)}%</span>
                       </div>
                       
-                      {/* AQUI USAMOS LA NUEVA PROP indicatorColor */}
                       <Progress 
                         value={project.avance} 
                         className="h-2 bg-muted" 
-                        indicatorColor={riskColor} // La barra toma el color del riesgo (Rojo o Amarillo)
+                        indicatorColor={riskColor}
                       />
                     </div>
                   </TableCell>
 
-                  {/* COLUMNA 4: PRIORIDAD (Badge conectado al tema) */}
                   <TableCell className="text-right">
                     <Badge 
                       variant="outline" 
@@ -149,7 +142,7 @@ export function CriticalProjectsTable({ projects }: Props) {
                       style={{
                         color: priorityColor,
                         borderColor: priorityColor,
-                        backgroundColor: `${priorityColor}10` // Fondo transparente
+                        backgroundColor: `${priorityColor}10`
                       }}
                     >
                       {project.prioridad}

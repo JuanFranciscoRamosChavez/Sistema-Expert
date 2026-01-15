@@ -1,9 +1,10 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge"; // Asegúrate de tener este componente o quítalo si no lo usas
+import { Badge } from "@/components/ui/badge"; 
 import { CheckCircle2, AlertTriangle, Rocket, TrendingUp, AlertOctagon } from "lucide-react";
 import { Project } from "@/lib/mockData";
 import { APP_COLORS } from "@/lib/theme";
+import { H3, Subtitle } from "@/components/ui/typography"; // <--- NUEVO IMPORT
 
 interface RecentActivityProps {
   projects: Project[];
@@ -11,25 +12,21 @@ interface RecentActivityProps {
 
 export function RecentActivity({ projects }: RecentActivityProps) {
   
-  // --- MOTOR DE GENERACIÓN DE ACTIVIDAD ---
-  // Analizamos los proyectos para crear "noticias" dinámicas
   const activities = projects.flatMap((p) => {
     const items = [];
 
-    // CASO 1: PROYECTO COMPLETADO (Éxito)
     if (p.status === 'completado') {
       items.push({
         id: `comp-${p.id}`,
         project: p.nombre,
         action: "Proyecto finalizado exitosamente",
-        time: "Meta cumplida", // Al no tener fecha real, usamos un texto de estado
+        time: "Meta cumplida",
         icon: CheckCircle2,
         color: APP_COLORS.success,
         initials: "OK"
       });
     }
 
-    // CASO 2: RIESGO CRÍTICO (Alerta)
     if (p.status === 'en_riesgo' || p.prioridad === 'critica') {
       items.push({
         id: `risk-${p.id}`,
@@ -42,8 +39,6 @@ export function RecentActivity({ projects }: RecentActivityProps) {
       });
     }
 
-    // CASO 3: INICIO RECIENTE (Arranque)
-    // Si tiene poco avance (entre 1 y 15%), asumimos que va arrancando
     if (p.avance > 0 && p.avance <= 15 && p.status === 'en_ejecucion') {
       items.push({
         id: `start-${p.id}`,
@@ -56,8 +51,6 @@ export function RecentActivity({ projects }: RecentActivityProps) {
       });
     }
 
-    // CASO 4: SOBRECOSTO (Financiero)
-    // Si lo ejecutado es mayor al presupuesto (con margen de error)
     if (p.ejecutado > p.presupuesto && p.presupuesto > 0) {
       items.push({
         id: `cost-${p.id}`,
@@ -65,7 +58,7 @@ export function RecentActivity({ projects }: RecentActivityProps) {
         action: "Excede el presupuesto asignado",
         time: "Revisar financiero",
         icon: AlertOctagon,
-        color: APP_COLORS.warning, // O danger según prefieras
+        color: APP_COLORS.warning,
         initials: "$$"
       });
     }
@@ -73,20 +66,18 @@ export function RecentActivity({ projects }: RecentActivityProps) {
     return items;
   });
 
-  // Ordenamos para dar prioridad a los Riesgos y luego a los Completados
-  // (En un futuro, aquí ordenarías por fecha real)
   const sortedActivities = activities.sort((a, b) => {
-    if (a.initials === "AL") return -1; // Riesgos primero
+    if (a.initials === "AL") return -1;
     if (b.initials === "AL") return 1;
     return 0;
-  }).slice(0, 10); // Top 10 noticias
+  }).slice(0, 10);
 
-  // ESTADO VACÍO
   if (sortedActivities.length === 0) {
     return (
       <div className="bg-card rounded-xl border border-border shadow-sm p-6 h-full flex flex-col items-center justify-center text-center text-muted-foreground">
         <TrendingUp className="h-10 w-10 mb-3 opacity-20" />
-        <p>No hay actividad destacada por el momento.</p>
+        <H3 className="text-base mt-2">Sin novedades recientes</H3>
+        <Subtitle>No hay actividad destacada por el momento.</Subtitle>
       </div>
     );
   }
@@ -94,24 +85,21 @@ export function RecentActivity({ projects }: RecentActivityProps) {
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm flex flex-col h-full animate-fade-in delay-300">
       <div className="p-6 border-b border-border">
-        <h3 className="font-display font-bold text-lg text-foreground">
-          Novedades y Alertas
-        </h3>
-        <p className="text-sm text-muted-foreground">
+        <H3>Novedades y Alertas</H3>
+        <Subtitle>
           Eventos destacados de la cartera de proyectos
-        </p>
+        </Subtitle>
       </div>
       
       <ScrollArea className="flex-1">
         <div className="p-6 space-y-6">
           {sortedActivities.map((activity, i) => (
             <div key={activity.id} className="flex gap-4 group">
-              {/* ICONO / AVATAR */}
               <div className="relative mt-0.5">
                 <Avatar className="h-9 w-9 border border-border">
                   <AvatarFallback 
                     style={{ 
-                      backgroundColor: `${activity.color}15`, // Fondo transparente del color
+                      backgroundColor: `${activity.color}15`,
                       color: activity.color,
                       fontWeight: 'bold',
                       fontSize: '10px'
@@ -120,7 +108,6 @@ export function RecentActivity({ projects }: RecentActivityProps) {
                     {activity.initials}
                   </AvatarFallback>
                 </Avatar>
-                {/* Pequeño icono flotante superpuesto */}
                 <div 
                   className="absolute -bottom-1 -right-1 rounded-full p-0.5 bg-card border border-border"
                   style={{ color: activity.color }}
@@ -129,7 +116,6 @@ export function RecentActivity({ projects }: RecentActivityProps) {
                 </div>
               </div>
 
-              {/* CONTENIDO TEXTO */}
               <div className="flex-1 space-y-1">
                 <p className="text-sm font-medium leading-none text-foreground line-clamp-2" title={activity.project}>
                   {activity.project}

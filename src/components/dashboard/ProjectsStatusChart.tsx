@@ -1,6 +1,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { Project } from '@/lib/mockData';
 import { APP_COLORS, STATUS_COLORS } from '@/lib/theme';
+import { H3, Subtitle } from '@/components/ui/typography'; // <--- NUEVO IMPORT
 
 interface ProjectsStatusChartProps {
   projects: Project[];
@@ -8,7 +9,6 @@ interface ProjectsStatusChartProps {
 
 export function ProjectsStatusChart({ projects }: ProjectsStatusChartProps) {
   
-  // Usamos las constantes importadas en lugar de escribir los códigos hexa
   const data = [
     { 
       name: 'Completado', 
@@ -57,8 +57,8 @@ export function ProjectsStatusChart({ projects }: ProjectsStatusChartProps) {
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm flex flex-col h-[350px] md:h-[400px] animate-fade-in delay-100 relative overflow-hidden">
       <div className="p-5 border-b border-border">
-        <h3 className="font-display font-bold text-lg text-foreground">Estado de la Cartera</h3>
-        <p className="text-sm text-muted-foreground">Distribución actual por etapa y riesgo</p>
+        <H3>Estado de la Cartera</H3>
+        <Subtitle>Distribución actual por etapa y riesgo</Subtitle>
       </div>
       
       <div className="flex-1 w-full min-h-0 relative">
@@ -80,7 +80,6 @@ export function ProjectsStatusChart({ projects }: ProjectsStatusChartProps) {
               ))}
             </Pie>
             
-            {/* SOLUCIÓN: Tooltip fijo en la esquina (coordenadas x:10, y:10) */}
             <Tooltip 
               content={<CustomTooltip />} 
               cursor={false} 
@@ -105,7 +104,6 @@ export function ProjectsStatusChart({ projects }: ProjectsStatusChartProps) {
           </PieChart>
         </ResponsiveContainer>
         
-        {/* Centro del Donut */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[65%] text-center pointer-events-none flex flex-col justify-center items-center z-0">
           <span className="text-4xl md:text-5xl font-bold font-display text-foreground tracking-tighter leading-none">
             {projects.length}

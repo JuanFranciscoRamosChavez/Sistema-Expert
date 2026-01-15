@@ -1,6 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { Project } from '@/lib/mockData';
 import { APP_COLORS } from '@/lib/theme';
+import { H3, Subtitle } from '@/components/ui/typography'; // <--- NUEVO IMPORT
 
 interface Props {
   projects: Project[];
@@ -8,10 +9,8 @@ interface Props {
 
 export function BudgetChart({ projects }: Props) {
   
-  // 1. NORMALIZACIÓN
   const normalizedData = projects.map(p => {
     const rawBudget = p.presupuesto || 0;
-    // Normalizar a Pesos Reales
     const realBudget = rawBudget < 1000000 && rawBudget > 0 
       ? rawBudget * 1000000 
       : rawBudget;
@@ -27,13 +26,11 @@ export function BudgetChart({ projects }: Props) {
     };
   });
 
-  // 2. ORDENAR
   const topProjects = normalizedData
     .filter(p => p.realBudget > 0)
     .sort((a, b) => b.realBudget - a.realBudget) 
     .slice(0, 6);
 
-  // 3. DATOS
   const data = topProjects.map(project => ({
     name: project.nombre.length > 15 ? project.nombre.substring(0, 15) + '...' : project.nombre,
     fullName: project.nombre,
@@ -86,8 +83,8 @@ export function BudgetChart({ projects }: Props) {
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm flex flex-col h-[350px] md:h-[400px] animate-fade-in delay-200">
       <div className="p-5 border-b border-border">
-        <h3 className="font-display font-bold text-lg text-foreground">Top 6 Proyectos (Devengado)</h3>
-        <p className="text-sm text-muted-foreground">Avance financiero real vs Presupuesto Total</p>
+        <H3>Top 6 Proyectos (Devengado)</H3>
+        <Subtitle>Avance financiero real vs Presupuesto Total</Subtitle>
       </div>
       
       <div className="flex-1 w-full min-h-0 p-4">
@@ -103,7 +100,6 @@ export function BudgetChart({ projects }: Props) {
             <XAxis 
               type="number" 
               tickFormatter={formatMoney} 
-              // AHORA USA EL COLOR HEXADECIMAL DIRECTO
               tick={{ fontSize: 10, fill: APP_COLORS.textMain, fontWeight: 600 }} 
               axisLine={false}
               tickLine={false}
@@ -113,7 +109,6 @@ export function BudgetChart({ projects }: Props) {
               dataKey="name" 
               type="category" 
               width={140} 
-              // AHORA USA EL COLOR HEXADECIMAL DIRECTO
               tick={{ fontSize: 11, fill: APP_COLORS.textMain, fontWeight: 600 }} 
               interval={0}
               axisLine={false}
@@ -128,7 +123,6 @@ export function BudgetChart({ projects }: Props) {
               iconType="circle"
               iconSize={8}
               wrapperStyle={{ fontSize: '12px', paddingBottom: '10px' }}
-              // FORMATEADOR CON COLOR HEX
               formatter={(value) => <span style={{ color: APP_COLORS.textMain, fontWeight: 600 }}>{value}</span>}
               payload={[
                 { value: 'Presupuesto Total', type: 'circle', color: APP_COLORS.backgroundBar }, 

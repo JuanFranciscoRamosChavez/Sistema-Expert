@@ -16,6 +16,7 @@ import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { Project } from '@/lib/mockData';
 import { mapApiToUiProject } from '@/lib/mappers';
 import { KPIData } from '@/types';
+import { H1, Subtitle } from "@/components/ui/typography"; // <--- NUEVO IMPORT
 
 export function DashboardView() {
 	const [projects, setProjects] = useState<Project[]>([]);
@@ -23,6 +24,7 @@ export function DashboardView() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
+	// --- TU LÓGICA DE FETCH ORIGINAL (INTACTA) ---
 	useEffect(() => {
 		const fetchData = async () => {
 			try {
@@ -60,14 +62,10 @@ export function DashboardView() {
 		fetchData();
 	}, []);
 
-	// --- LÓGICA DE ESCALA DINÁMICA (DETECTA PESOS VS MILLONES) ---
+	// --- TUS HELPERS DE CÁLCULO (INTACTOS) ---
 
 	const getBudgetValue = (val: any) => {
 		const num = Number(val) || 0;
-		
-		// UMBRAL: 1 Millón.
-		// Si es menor a 1M (ej: 35,999), asumimos que el dato viene en "Millones de Pesos" -> Multiplicamos
-		// Si es mayor a 1M (ej: 3,550,000), asumimos que el dato viene en "Pesos" -> Dejamos igual
 		const realAmount = num < 1000000 ? num * 1000000 : num;
 
 		return new Intl.NumberFormat('es-MX', {
@@ -83,22 +81,17 @@ export function DashboardView() {
 		let millionsDisplay = 0;
 
 		if (num < 1000000) {
-			// Caso "35,999": El número YA son millones.
 			millionsDisplay = num;
 		} else {
-			// Caso "3,550,000": El número son pesos, hay que dividir.
 			millionsDisplay = num / 1000000;
 		}
 
-		// Formateamos con comas y sin decimales excesivos
 		const formattedMillions = millionsDisplay.toLocaleString('es-MX', { 
 			maximumFractionDigits: 2 
 		});
 		
 		return `${formattedMillions} millones de pesos Presupuesto vigente`; 
 	};
-
-	// --- RESTO DE HELPERS ---
 
 	const getBeneficiariesValue = (val: any) => {
 		const num = Number(val) || 0;
@@ -126,17 +119,15 @@ export function DashboardView() {
 
 	return (
 		<div className="space-y-6 animate-fade-in">
-			<div>
-				<h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
-					Ejecutivo para la administración POA
-				</h1>
-				<p className="text-muted-foreground mt-1">
+			{/* HEADER ACTUALIZADO CON TIPOGRAFÍA CENTRALIZADA */}
+			<div className="flex flex-col gap-1">
+				<H1>Ejecutivo para la administración POA</H1>
+				<Subtitle>
 					Vista consolidada del Plan Operativo Anual 2026
-				</p>
+				</Subtitle>
 			</div>
 
 			<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
-				{/* 1. Proyectos */}
 				<KPICard
 					title="Total de Proyecto Actuales"
 					value={kpiData.total_proyectos}
@@ -144,8 +135,6 @@ export function DashboardView() {
 					icon={FolderKanban}
 					variant="default"
 				/>
-
-				{/* 2. Presupuesto (Dinámico) */}
 				<KPICard
 					title="Presupuesto Total"
 					value={getBudgetValue(kpiData.presupuesto_total)}
@@ -154,8 +143,6 @@ export function DashboardView() {
 					variant="success"
 					delay={200}
 				/>
-				
-				{/* 3. Beneficiarios */}
 				<KPICard
 					title="Beneficiarios"
 					value={getBeneficiariesValue(kpiData.beneficiarios)}
@@ -164,8 +151,6 @@ export function DashboardView() {
 					variant="info"
 					delay={100}
 				/>
-				
-				{/* 4. Riesgo */}
 				<KPICard
 					title="Proyectos en Riesgo"
 					value={kpiData.atencion_requerida}
