@@ -105,7 +105,7 @@ export function Sidebar({ currentView, onViewChange, isOpen, onClose }: SidebarP
               )}
             >
               <Settings className="h-5 w-5 shrink-0" />
-              {!isCollapsed && <span>Configuración</span>}
+              {!isCollapsed && <span>Configuración123</span>}
             </button>
             
             <Button

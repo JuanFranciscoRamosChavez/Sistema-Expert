@@ -80,7 +80,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                   <User className="h-4 w-4 text-primary-foreground" />
                 </div>
                 <div className="hidden md:block text-left">
-                  <p className="text-sm font-medium">Secretario</p>
+                  <p className="text-sm font-medium">Secretario12</p>
                   <p className="text-xs text-muted-foreground">Administrador</p>
                 </div>
               </Button>
