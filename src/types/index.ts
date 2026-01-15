@@ -11,11 +11,12 @@ export interface APIProject {
 	presupuesto_final: number;
 	monto_ejecutado: number;
 	avance_fisico_pct: number;
+	avance_financiero_pct: number;
 	semaforo: 'ROJO' | 'AMARILLO' | 'VERDE';
 	
 	// Datos crudos
 	urgencia_num: number;
-	riesgo_nivel_num: number;
+	riesgo_nivel: number;
 	beneficiarios_num: number;
 	
 	// Fechas
@@ -33,6 +34,7 @@ export interface APIProject {
 	problemas_identificados: string;
 	acciones_correctivas: string;
 	unidad_medida: string;
+	estatus_general?: string;
 }
 
 export interface KPIData {

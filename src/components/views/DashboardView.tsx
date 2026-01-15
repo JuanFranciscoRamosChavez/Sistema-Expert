@@ -131,7 +131,7 @@ export function DashboardView() {
 					Ejecutivo para la administración POA
 				</h1>
 				<p className="text-muted-foreground mt-1">
-					Vista consolidada del Plan Operativo Anual 2025
+					Vista consolidada del Plan Operativo Anual 2026
 				</p>
 			</div>
 

@@ -33,10 +33,28 @@ def clean_money_vectorized(valor):
 		return 0.0
 
 def clean_percentage_vectorized(valor):
+	"""
+	Normaliza porcentajes a escala 0-100.
+	- Entrada "100%" o 100 -> Salida 100.0
+	- Entrada "1" o 1.0    -> Salida 100.0 (Asume formato decimal)
+	- Entrada "0.5"        -> Salida 50.0
+	- Entrada "50"         -> Salida 50.0
+	"""
 	if pd.isna(valor): return 0.0
+	
+	# Limpiar símbolos
 	val_str = str(valor).replace('%', '').strip()
+	
 	try:
-		return float(val_str)
+		num = float(val_str)
+		
+		# Lógica de detección de escala:
+		# Si el número es <= 1.0 y mayor a 0, asumimos que es formato decimal (ej. 0.5 = 50%, 1 = 100%)
+		# Excepción: Si es exactamente 0, es 0%.
+		if 0 < num <= 1.0:
+			return num * 100
+			
+		return num
 	except:
 		return 0.0
 
