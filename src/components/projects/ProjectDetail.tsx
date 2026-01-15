@@ -1,201 +1,199 @@
-import { Project, getStatusLabel, getPriorityLabel, formatCurrency, formatNumber } from '@/lib/mockData';
+import { 
+	Calendar, 
+	MapPin, 
+	User, 
+	DollarSign, 
+	Target, 
+	AlertTriangle,
+	CheckCircle2
+} from 'lucide-react';
+import {
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+} from "@/components/ui/dialog";
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  X, Calendar, MapPin, User, DollarSign, Users, Target, 
-  AlertTriangle, CheckCircle, TrendingUp, Building2 
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { Project } from '@/lib/mockData';
+import { APP_COLORS, STATUS_COLORS } from '@/lib/theme';
+import { H3, Subtitle, P, Small } from '@/components/ui/typography';
 
 interface ProjectDetailProps {
-  project: Project;
-  onClose: () => void;
+	project: Project;
 }
 
-export function ProjectDetail({ project, onClose }: ProjectDetailProps) {
-  const viabilityColors = {
-    alta: 'bg-success/20 text-success border-success/30',
-    media: 'bg-warning/20 text-warning border-warning/30',
-    baja: 'bg-danger/20 text-danger border-danger/30',
-  };
+export function ProjectDetail({ project }: ProjectDetailProps) {
+	
+	const statusColor = STATUS_COLORS[project.status as keyof typeof STATUS_COLORS] || APP_COLORS.neutral;
 
-  return (
-    <div className="fixed inset-0 z-50 bg-foreground/20 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-card rounded-xl shadow-lg w-full max-w-4xl max-h-[90vh] overflow-hidden animate-scale-in">
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-card border-b border-border p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant={project.status as any}>{getStatusLabel(project.status)}</Badge>
-                <Badge variant={project.prioridad === 'critica' ? 'critical' : project.prioridad === 'alta' ? 'high' : 'medium'}>
-                  Prioridad {getPriorityLabel(project.prioridad)}
-                </Badge>
-                <span className={cn("text-xs font-medium px-2 py-1 rounded-full border", viabilityColors[project.viabilidad])}>
-                  Viabilidad {project.viabilidad.charAt(0).toUpperCase() + project.viabilidad.slice(1)}
-                </span>
-              </div>
-              <h2 className="font-display text-xl md:text-2xl font-bold">{project.nombre}</h2>
-              <p className="text-muted-foreground">{project.descripcion}</p>
-            </div>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
+	const formatMoney = (amount: number) => {
+		return new Intl.NumberFormat('es-MX', {
+			style: 'currency',
+			currency: 'MXN',
+		}).format(amount);
+	};
 
-        {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)] space-y-6">
-          {/* Info Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-muted/50 rounded-lg p-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Building2 className="h-4 w-4" />
-                <span className="text-xs">Dirección</span>
-              </div>
-              <p className="font-medium text-sm">{project.direccion}</p>
-            </div>
-            <div className="bg-muted/50 rounded-lg p-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <User className="h-4 w-4" />
-                <span className="text-xs">Responsable</span>
-              </div>
-              <p className="font-medium text-sm">{project.responsable}</p>
-            </div>
-            <div className="bg-muted/50 rounded-lg p-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <MapPin className="h-4 w-4" />
-                <span className="text-xs">Ubicación</span>
-              </div>
-              <p className="font-medium text-sm">{project.ubicacion}</p>
-            </div>
-            <div className="bg-muted/50 rounded-lg p-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Users className="h-4 w-4" />
-                <span className="text-xs">Beneficiarios</span>
-              </div>
-              <p className="font-medium text-sm">{formatNumber(project.beneficiarios)}</p>
-            </div>
-          </div>
+	return (
+		<DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden gap-0">
+			
+			{/* HEADER DEL MODAL CON COLOR DE ESTATUS */}
+			<DialogHeader className="p-6 pb-4 border-b border-border bg-card sticky top-0 z-10">
+				<div className="flex flex-col gap-2">
+					<div className="flex items-center gap-2">
+						<Badge 
+							variant="outline" 
+							className="uppercase tracking-wider font-bold"
+							style={{ 
+								color: statusColor, 
+								borderColor: statusColor,
+								backgroundColor: `${statusColor}10` 
+							}}
+						>
+							{project.status.replace('_', ' ')}
+						</Badge>
+						<Badge variant="secondary" className="text-xs">
+							ID: {project.id}
+						</Badge>
+					</div>
+					<DialogTitle className="text-xl md:text-2xl font-display font-bold text-foreground leading-snug">
+						{project.nombre}
+					</DialogTitle>
+					<div className="flex items-center gap-2 text-muted-foreground">
+						<MapPin className="h-4 w-4" />
+						<DialogDescription className="text-sm mt-0">
+							{project.ubicacion} • {project.zona}
+						</DialogDescription>
+					</div>
+				</div>
+			</DialogHeader>
 
-          {/* Progress & Budget */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                  Avance del Proyecto
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-end justify-between">
-                    <span className="text-4xl font-display font-bold">{project.avance}%</span>
-                    <span className="text-sm text-muted-foreground">completado</span>
-                  </div>
-                  <Progress value={project.avance} className="h-3" />
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      Inicio: {new Date(project.fechaInicio).toLocaleDateString('es-MX')}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      Fin: {new Date(project.fechaFin).toLocaleDateString('es-MX')}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+			{/* CONTENIDO CON SCROLL */}
+			<ScrollArea className="flex-1 p-6">
+				<div className="space-y-8">
+					
+					{/* 1. DESCRIPCIÓN */}
+					<div className="space-y-3">
+						<H3 className="text-base flex items-center gap-2">
+							<Target className="h-4 w-4 text-primary" />
+							Objetivo e Impacto
+						</H3>
+						<div className="bg-muted/30 p-4 rounded-lg border border-border">
+							<P className="mt-0 text-sm">{project.descripcion}</P>
+							
+							<div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-border/50">
+								<div>
+									<Small className="block mb-1">Beneficiarios</Small>
+									<span className="font-semibold text-foreground">
+										{new Intl.NumberFormat('es-MX').format(project.beneficiarios)} personas
+									</span>
+								</div>
+								<div>
+									<Small className="block mb-1">Dirección Responsable</Small>
+									<span className="font-semibold text-foreground">
+										{project.direccion}
+									</span>
+								</div>
+							</div>
+						</div>
+					</div>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-success" />
-                  Presupuesto
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-end justify-between">
-                    <span className="text-2xl font-display font-bold">{formatCurrency(project.ejecutado)}</span>
-                    <span className="text-sm text-muted-foreground">de {formatCurrency(project.presupuesto)}</span>
-                  </div>
-                  <Progress value={(project.ejecutado / project.presupuesto) * 100} className="h-3" />
-                  <p className="text-sm text-muted-foreground">
-                    {((project.ejecutado / project.presupuesto) * 100).toFixed(1)}% del presupuesto ejecutado
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+					{/* 2. DATOS FINANCIEROS Y AVANCE */}
+					<div className="grid md:grid-cols-2 gap-6">
+						{/* Tarjeta Financiera */}
+						<div className="space-y-3">
+							<H3 className="text-base flex items-center gap-2">
+								<DollarSign className="h-4 w-4 text-emerald-600" />
+								Finanzas
+							</H3>
+							<div className="p-4 rounded-lg border border-border bg-card space-y-3">
+								<div className="flex justify-between items-center">
+									<Subtitle>Presupuesto Total</Subtitle>
+									<span className="font-bold text-foreground">{formatMoney(project.presupuesto)}</span>
+								</div>
+								<div className="flex justify-between items-center">
+									<Subtitle>Ejercido</Subtitle>
+									<span className="font-bold text-primary">{formatMoney(project.ejecutado)}</span>
+								</div>
+								<Separator />
+								<div className="flex justify-between items-center text-xs">
+									<span className="text-muted-foreground">Disponibilidad</span>
+									<span className="font-mono">{formatMoney(project.presupuesto - project.ejecutado)}</span>
+								</div>
+							</div>
+						</div>
 
-          {/* Objectives */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Target className="h-4 w-4 text-primary" />
-                Objetivos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
-                {project.objetivos.map((obj, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-success shrink-0 mt-0.5" />
-                    <span className="text-sm">{obj}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+						{/* Tarjeta de Tiempos y Avance */}
+						<div className="space-y-3">
+							<H3 className="text-base flex items-center gap-2">
+								<Calendar className="h-4 w-4 text-blue-500" />
+								Cronograma
+							</H3>
+							<div className="p-4 rounded-lg border border-border bg-card space-y-4">
+								<div className="space-y-1.5">
+									<div className="flex justify-between text-sm font-medium">
+										<span>Avance Físico</span>
+										<span style={{ color: statusColor }}>{project.avance.toFixed(1)}%</span>
+									</div>
+									<Progress value={project.avance} className="h-2" indicatorColor={statusColor} />
+								</div>
+								
+								<div className="grid grid-cols-2 gap-2 text-xs">
+									<div className="bg-muted p-2 rounded">
+										<span className="block text-muted-foreground mb-0.5">Inicio</span>
+										<span className="font-medium text-foreground">
+											{new Date(project.fechaInicio).toLocaleDateString()}
+										</span>
+									</div>
+									<div className="bg-muted p-2 rounded">
+										<span className="block text-muted-foreground mb-0.5">Fin Prog.</span>
+										<span className="font-medium text-foreground">
+											{new Date(project.fechaFin).toLocaleDateString()}
+										</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
 
-          {/* Indicators */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Indicadores de Desempeño</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 gap-4">
-                {project.indicadores.map((ind, i) => (
-                  <div key={i} className="bg-muted/30 rounded-lg p-4">
-                    <p className="text-sm text-muted-foreground mb-2">{ind.nombre}</p>
-                    <div className="flex items-end justify-between mb-2">
-                      <span className="text-2xl font-bold">{ind.actual}</span>
-                      <span className="text-sm text-muted-foreground">/ {ind.meta} {ind.unidad}</span>
-                    </div>
-                    <Progress value={(ind.actual / ind.meta) * 100} className="h-2" />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+					{/* 3. RESPONSABLE Y RIESGOS */}
+					<div className="grid md:grid-cols-2 gap-6">
+						<div className="space-y-2">
+							<H3 className="text-sm uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-2">
+								<User className="h-4 w-4" /> Responsable Operativo
+							</H3>
+							<div className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg">
+								<div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+									OP
+								</div>
+								<div>
+									<p className="text-sm font-medium text-foreground">{project.responsable}</p>
+									<p className="text-xs text-muted-foreground">Coordinador de Obra</p>
+								</div>
+							</div>
+						</div>
 
-          {/* Risks */}
-          {project.riesgos.length > 0 && (
-            <Card className="border-warning/30">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2 text-warning">
-                  <AlertTriangle className="h-4 w-4" />
-                  Riesgos Identificados
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {project.riesgos.map((risk, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm">
-                      <span className="text-warning">•</span>
-                      {risk}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+						{(project.riesgos && project.riesgos.length > 0) && (
+							<div className="space-y-2">
+								<H3 className="text-sm uppercase tracking-wider text-destructive font-semibold flex items-center gap-2">
+									<AlertTriangle className="h-4 w-4" /> Riesgos Detectados
+								</H3>
+								<ul className="space-y-2">
+									{project.riesgos.map((riesgo, i) => (
+										<li key={i} className="text-sm text-muted-foreground flex gap-2 items-start bg-destructive/5 p-2 rounded">
+											<span className="text-destructive mt-0.5">•</span>
+											{riesgo}
+										</li>
+									))}
+								</ul>
+							</div>
+						)}
+					</div>
+
+				</div>
+			</ScrollArea>
+		</DialogContent>
+	);
 }
