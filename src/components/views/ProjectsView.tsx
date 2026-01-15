@@ -7,7 +7,7 @@ import {
 	List as ListIcon, 
 	MapPin,
 	X,
-	SlidersHorizontal // Icono para botón de filtros
+	SlidersHorizontal 
 } from 'lucide-react';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { ProjectDetail } from '@/components/projects/ProjectDetail';
@@ -109,7 +109,6 @@ export function ProjectsView() {
 		setSelectedStatus('all');
 	};
 
-	// Detectar si hay filtros activos para mostrar botón de limpieza
 	const hasActiveFilters = searchTerm !== '' || selectedArea !== 'all' || selectedStatus !== 'all';
 
 	const formatMoney = (amount: number) => {
@@ -132,7 +131,7 @@ export function ProjectsView() {
 		return labels[status] || status;
 	};
 
-	// --- COMPONENTE DE SELECTORES (Para reusar en Desktop y Mobile) ---
+	// --- COMPONENTE DE SELECTORES (SOLO DESKTOP) ---
 	const FilterControls = () => (
 		<>
 			{/* Filtro: Áreas */}
@@ -144,7 +143,8 @@ export function ProjectsView() {
 							<SelectValue placeholder="Todas las áreas" />
 						</div>
 					</SelectTrigger>
-					<SelectContent>
+					{/* AJUSTE: max-h-[300px] para activar scroll si la lista es larga */}
+					<SelectContent className="max-h-[300px]">
 						<SelectItem value="all">Todas las áreas</SelectItem>
 						{uniqueAreas.map(area => (
 							<SelectItem key={area} value={area}>{area}</SelectItem>
@@ -159,7 +159,8 @@ export function ProjectsView() {
 					<SelectTrigger className="bg-background/60">
 						<SelectValue placeholder="Todos los estatus" />
 					</SelectTrigger>
-					<SelectContent>
+					{/* AJUSTE: max-h-[300px] aquí también por si acaso */}
+					<SelectContent className="max-h-[300px]">
 						<SelectItem value="all">Todos los estatus</SelectItem>
 						{uniqueStatuses.map(status => (
 							<SelectItem key={status} value={status}>
@@ -209,16 +210,15 @@ export function ProjectsView() {
 				{/* 2. BARRA DE FILTROS FLUIDA */}
 				<div className="flex gap-3 items-center bg-card p-3 rounded-xl border border-border shadow-sm">
 					
-					{/* BUSCADOR (Siempre visible y ocupa el espacio disponible) */}
+					{/* BUSCADOR */}
 					<div className="relative flex-1">
 						<Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
 						<Input 
-							placeholder="Buscar proyecto por nombre o responsable..." 
+							placeholder="Buscar proyecto..." 
 							className="pl-9 bg-muted/30 border-transparent focus:bg-background transition-colors"
 							value={searchTerm}
 							onChange={(e) => setSearchTerm(e.target.value)}
 						/>
-						{/* Botón X dentro del input para limpiar solo texto */}
 						{searchTerm && (
 							<button onClick={() => setSearchTerm('')} className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground">
 								<X className="h-4 w-4" />
@@ -226,12 +226,11 @@ export function ProjectsView() {
 						)}
 					</div>
 
-					{/* FILTROS DESKTOP (Visibles en md+) */}
+					{/* FILTROS DESKTOP */}
 					<div className="hidden md:flex gap-3 items-center">
-						<div className="w-[1px] h-8 bg-border mx-1" /> {/* Separador vertical */}
+						<div className="w-[1px] h-8 bg-border mx-1" />
 						<FilterControls />
 						
-						{/* Botón Limpiar Todo (Desktop) */}
 						{hasActiveFilters && (
 							<Button 
 								variant="ghost" 
@@ -245,13 +244,12 @@ export function ProjectsView() {
 						)}
 					</div>
 
-					{/* FILTROS MOBILE (Botón que abre Modal/Sheet) */}
+					{/* FILTROS MOBILE (Sheet) */}
 					<div className="md:hidden">
 						<Sheet>
 							<SheetTrigger asChild>
 								<Button variant="outline" size="icon" className={hasActiveFilters ? "border-primary text-primary bg-primary/5" : ""}>
 									<SlidersHorizontal className="h-4 w-4" />
-									{/* Indicador de filtro activo */}
 									{(selectedArea !== 'all' || selectedStatus !== 'all') && (
 										<span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
 									)}
@@ -272,7 +270,8 @@ export function ProjectsView() {
 											<SelectTrigger className="w-full">
 												<SelectValue placeholder="Todas" />
 											</SelectTrigger>
-											<SelectContent>
+											{/* AJUSTE: max-h-[300px] para móviles también */}
+											<SelectContent className="max-h-[300px]">
 												<SelectItem value="all">Todas las áreas</SelectItem>
 												{uniqueAreas.map(area => (
 													<SelectItem key={area} value={area}>{area}</SelectItem>
@@ -287,7 +286,7 @@ export function ProjectsView() {
 											<SelectTrigger className="w-full">
 												<SelectValue placeholder="Todos" />
 											</SelectTrigger>
-											<SelectContent>
+											<SelectContent className="max-h-[300px]">
 												<SelectItem value="all">Todos los estatus</SelectItem>
 												{uniqueStatuses.map(status => (
 													<SelectItem key={status} value={status}>
