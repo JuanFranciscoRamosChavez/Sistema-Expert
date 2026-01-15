@@ -214,7 +214,7 @@ export function ProjectsView() {
 					<div className="relative flex-1">
 						<Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
 						<Input 
-							placeholder="Buscar proyecto..." 
+							placeholder="Buscar proyecto por nombre o responsable..." 
 							className="pl-9 bg-muted/30 border-transparent focus:bg-background transition-colors"
 							value={searchTerm}
 							onChange={(e) => setSearchTerm(e.target.value)}
