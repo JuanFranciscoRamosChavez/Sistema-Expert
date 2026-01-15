@@ -13,7 +13,7 @@ import { ProjectsStatusChart } from '@/components/dashboard/ProjectsStatusChart'
 import { BudgetChart } from '@/components/dashboard/BudgetChart';
 import { CriticalProjectsTable } from '@/components/dashboard/CriticalProjectsTable';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
-import { Project, formatCurrency, formatNumber } from '@/lib/mockData';
+import { Project } from '@/lib/mockData';
 import { mapApiToUiProject } from '@/lib/mappers';
 import { KPIData } from '@/types';
 
@@ -27,33 +27,31 @@ export function DashboardView() {
 		const fetchData = async () => {
 			try {
 				setError(null);
-				// Usamos promesas individuales para que si una falla, sepamos cuál fue
-				const resumenRes = await fetch('http://127.0.0.1:8000/api/dashboard/resumen/');
-				const obrasRes = await fetch('http://127.0.0.1:8000/api/obras/');
+				const [resumenRes, obrasRes] = await Promise.all([
+					fetch('http://127.0.0.1:8000/api/dashboard/resumen/'),
+					fetch('http://127.0.0.1:8000/api/obras/')
+				]);
 
 				if (!resumenRes.ok || !obrasRes.ok) {
-					throw new Error('Error en la respuesta del servidor Django');
+					throw new Error('Error de conexión con el servidor (Backend)');
 				}
 
 				const resumenJson = await resumenRes.json();
 				const obrasJson = await obrasRes.json();
 
-				// Verificamos estructura antes de asignar
-				if (resumenJson && resumenJson.kpi_tarjetas) {
-					setKpiData(resumenJson.kpi_tarjetas);
-				}
-				
-				// SEGURIDAD: Solo mapeamos si es un array
 				if (Array.isArray(obrasJson)) {
 					setProjects(obrasJson.map(mapApiToUiProject));
 				} else {
-					console.error("La API de obras no devolvió una lista:", obrasJson);
-					setProjects([]); // Evita crash
+					setProjects([]);
+				}
+
+				if (resumenJson && resumenJson.kpi_tarjetas) {
+					setKpiData(resumenJson.kpi_tarjetas);
 				}
 
 			} catch (err) {
-				console.error("Error cargando datos:", err);
-				setError("No se pudo conectar con el servidor. Por favor, intente más tarde.");
+				console.error("Fallo crítico en dashboard:", err);
+				setError("No se pudo cargar la información. Revisa que el backend esté corriendo.");
 			} finally {
 				setLoading(false);
 			}
@@ -62,75 +60,112 @@ export function DashboardView() {
 		fetchData();
 	}, []);
 
-	// Cálculos secundarios
+	// --- LÓGICA DE ESCALA DINÁMICA (DETECTA PESOS VS MILLONES) ---
+
+	const getBudgetValue = (val: any) => {
+		const num = Number(val) || 0;
+		
+		// UMBRAL: 1 Millón.
+		// Si es menor a 1M (ej: 35,999), asumimos que el dato viene en "Millones de Pesos" -> Multiplicamos
+		// Si es mayor a 1M (ej: 3,550,000), asumimos que el dato viene en "Pesos" -> Dejamos igual
+		const realAmount = num < 1000000 ? num * 1000000 : num;
+
+		return new Intl.NumberFormat('es-MX', {
+			style: 'currency',
+			currency: 'MXN',
+			minimumFractionDigits: 0,
+			maximumFractionDigits: 0,
+		}).format(realAmount);
+	};
+
+	const getBudgetSubtitle = (val: any) => {
+		const num = Number(val) || 0;
+		let millionsDisplay = 0;
+
+		if (num < 1000000) {
+			// Caso "35,999": El número YA son millones.
+			millionsDisplay = num;
+		} else {
+			// Caso "3,550,000": El número son pesos, hay que dividir.
+			millionsDisplay = num / 1000000;
+		}
+
+		// Formateamos con comas y sin decimales excesivos
+		const formattedMillions = millionsDisplay.toLocaleString('es-MX', { 
+			maximumFractionDigits: 2 
+		});
+		
+		return `${formattedMillions} millones de pesos Presupuesto vigente`; 
+	};
+
+	// --- RESTO DE HELPERS ---
+
+	const getBeneficiariesValue = (val: any) => {
+		const num = Number(val) || 0;
+		return `${new Intl.NumberFormat('es-MX').format(num)} personas`; 
+	};
+
+	const getBeneficiariesSubtitle = (val: any) => {
+		const num = Number(val) || 0;
+		const miles = (num / 1000).toLocaleString('es-MX', { maximumFractionDigits: 0 });
+		return `${miles} mil personas Ciudadanos impactados registrados`; 
+	};
+
 	const completedProjects = projects.filter(p => p.status === 'completado').length;
 	const avgAdvance = projects.length > 0 
 		? Math.round(projects.reduce((sum, p) => sum + p.avance, 0) / projects.length) 
 		: 0;
 	
-	const executionRate = kpiData && kpiData.presupuesto_total > 0
-		? ((projects.reduce((sum, p) => sum + p.ejecutado, 0) / kpiData.presupuesto_total) * 100).toFixed(1)
-		: "0.0";
-
 	if (loading) {
-		return (
-			<div className="flex h-screen items-center justify-center gap-3 text-muted-foreground">
-				<div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-				Cargando POA ...
-			</div>
-		);
+		return <div className="flex h-screen items-center justify-center gap-2 text-muted-foreground"><div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />Cargando datos...</div>;
 	}
 
 	if (error || !kpiData) {
-		return (
-			<div className="flex h-screen flex-col items-center justify-center gap-4 text-muted-foreground p-4 text-center">
-				<AlertTriangle className="h-10 w-10 text-warning" />
-				<p>{error || "No hay datos disponibles para mostrar."}</p>
-				<button 
-					onClick={() => window.location.reload()}
-					className="text-primary hover:underline"
-				>
-					Reintentar
-				</button>
-			</div>
-		);
+		return <div className="flex h-screen items-center justify-center p-4 text-center"><AlertTriangle className="h-10 w-10 text-destructive mb-2" /><p className="text-muted-foreground">{error}</p></div>;
 	}
 
 	return (
-		<div className="space-y-6">
-			<div className="animate-fade-in">
+		<div className="space-y-6 animate-fade-in">
+			<div>
 				<h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
-					Panel Ejecutivo
+					Ejecutivo para la administración POA
 				</h1>
 				<p className="text-muted-foreground mt-1">
-					Vista consolidada del Plan Operativo Anual 2026
+					Vista consolidada del Plan Operativo Anual 2025
 				</p>
 			</div>
 
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+			<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
+				{/* 1. Proyectos */}
 				<KPICard
-					title="Total de Proyectos"
+					title="Total de Proyecto Actuales"
 					value={kpiData.total_proyectos}
 					subtitle="En cartera activa"
 					icon={FolderKanban}
 					variant="default"
 				/>
+
+				{/* 2. Presupuesto (Dinámico) */}
 				<KPICard
 					title="Presupuesto Total"
-					value={formatCurrency(kpiData.presupuesto_total)}
-					subtitle={`${executionRate}% ejecutado`}
+					value={getBudgetValue(kpiData.presupuesto_total)}
+					subtitle={getBudgetSubtitle(kpiData.presupuesto_total)}
 					icon={DollarSign}
 					variant="success"
-					delay={100}
-				/>
-				<KPICard
-					title="Beneficiarios"
-					value={formatNumber(kpiData.beneficiarios)}
-					subtitle="Ciudadanos impactados"
-					icon={Users}
-					variant="info"
 					delay={200}
 				/>
+				
+				{/* 3. Beneficiarios */}
+				<KPICard
+					title="Beneficiarios"
+					value={getBeneficiariesValue(kpiData.beneficiarios)}
+					subtitle={getBeneficiariesSubtitle(kpiData.beneficiarios)}
+					icon={Users}
+					variant="info"
+					delay={100}
+				/>
+				
+				{/* 4. Riesgo */}
 				<KPICard
 					title="Proyectos en Riesgo"
 					value={kpiData.atencion_requerida}
@@ -145,24 +180,15 @@ export function DashboardView() {
 			<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 				<div className="bg-card rounded-xl p-5 shadow-sm border border-border flex items-center gap-4">
 					<div className="p-3 rounded-lg bg-success/10"><CheckCircle className="h-6 w-6 text-success" /></div>
-					<div>
-						<p className="text-2xl font-display font-bold">{completedProjects}</p>
-						<p className="text-sm text-muted-foreground">Completados</p>
-					</div>
+					<div><p className="text-2xl font-display font-bold">{completedProjects}</p><p className="text-sm text-muted-foreground">Completados</p></div>
 				</div>
 				<div className="bg-card rounded-xl p-5 shadow-sm border border-border flex items-center gap-4">
 					<div className="p-3 rounded-lg bg-info/10"><Clock className="h-6 w-6 text-info" /></div>
-					<div>
-						<p className="text-2xl font-display font-bold">{kpiData.en_ejecucion}</p>
-						<p className="text-sm text-muted-foreground">En Ejecución</p>
-					</div>
+					<div><p className="text-2xl font-display font-bold">{kpiData.en_ejecucion}</p><p className="text-sm text-muted-foreground">En Ejecución</p></div>
 				</div>
 				<div className="bg-card rounded-xl p-5 shadow-sm border border-border flex items-center gap-4">
 					<div className="p-3 rounded-lg bg-primary/10"><TrendingUp className="h-6 w-6 text-primary" /></div>
-					<div>
-						<p className="text-2xl font-display font-bold">{avgAdvance}%</p>
-						<p className="text-sm text-muted-foreground">Avance Promedio</p>
-					</div>
+					<div><p className="text-2xl font-display font-bold">{avgAdvance}%</p><p className="text-sm text-muted-foreground">Avance Promedio</p></div>
 				</div>
 			</div>
 
@@ -172,9 +198,10 @@ export function DashboardView() {
 			</div>
 
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-				<div className="lg:col-span-3">
+				<div className="lg:col-span-2">
 					<CriticalProjectsTable projects={projects} />
 				</div>
+				<RecentActivity />
 			</div>
 		</div>
 	);
