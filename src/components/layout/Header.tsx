@@ -1,100 +1,59 @@
-import { Bell, Search, User, Settings, Menu } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { 
+  Bell, 
+  Search 
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Badge } from '@/components/ui/badge';
 
-interface HeaderProps {
-  onMenuClick: () => void;
-}
+// NOTA: Ya no necesitamos HeaderProps ni onMenuClick porque 
+// el Sidebar maneja su propio botón de apertura.
 
-export function Header({ onMenuClick }: HeaderProps) {
+export function Header() {
+  const location = useLocation();
+  
+  // Función para mostrar el título según la página actual
+  const getTitle = () => {
+    // Detectamos la ruta base para poner un título limpio
+    const path = location.pathname;
+    if (path.includes('/dashboard')) return 'Panel Ejecutivo';
+    if (path.includes('/projects')) return 'Cartera de Proyectos';
+    if (path.includes('/territory')) return 'Gestión Territorial';
+    if (path.includes('/risks')) return 'Riesgos y Alertas';
+    if (path.includes('/timeline')) return 'Cronograma';
+    if (path.includes('/transparency')) return 'Transparencia';
+    if (path.includes('/reports')) return 'Reportes';
+    if (path.includes('/settings')) return 'Configuración';
+    return 'Sistema POA';
+  };
+
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-      <div className="flex h-16 items-center gap-4 px-4 md:px-6">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="md:hidden"
-          onClick={onMenuClick}
-        >
-          <Menu className="h-5 w-5" />
+    <header className="h-16 border-b border-border bg-card/80 backdrop-blur-sm px-4 md:px-6 flex items-center justify-between sticky top-0 z-30">
+      <div className="flex items-center gap-4">
+        {/* AJUSTE DE MARGEN: 
+           ml-12 (48px) en móvil para dejar espacio al botón flotante del Sidebar.
+           md:ml-0 en escritorio porque el botón desaparece.
+        */}
+        <h2 className="font-display font-bold text-lg md:text-xl text-foreground ml-12 md:ml-0 transition-all duration-300">
+          {getTitle()}
+        </h2>
+      </div>
+
+      <div className="flex items-center gap-2 md:gap-3">
+        {/* Barra de búsqueda (solo escritorio) */}
+        <div className="relative hidden md:block w-64">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="Buscar proyecto..." 
+            className="pl-9 h-9 bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-primary"
+          />
+        </div>
+        
+        {/* Botón de notificaciones */}
+        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground relative">
+          <Bell className="h-5 w-5" />
+          <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive border border-card" />
         </Button>
-
-        <div className="flex-1 flex items-center gap-4">
-          <div className="relative w-full max-w-md hidden md:block">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar proyectos, responsables, zonas..."
-              className="pl-10 bg-background/50"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]" variant="danger">
-                  3
-                </Badge>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-              <DropdownMenuLabel>Notificaciones</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="flex flex-col items-start gap-1 py-3">
-                <span className="font-medium text-sm">Proyecto en riesgo detectado</span>
-                <span className="text-xs text-muted-foreground">Parque Ecológico presenta retrasos críticos</span>
-                <span className="text-xs text-danger">Hace 2 horas</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start gap-1 py-3">
-                <span className="font-medium text-sm">Meta alcanzada</span>
-                <span className="text-xs text-muted-foreground">Centro Cultural completado al 100%</span>
-                <span className="text-xs text-success">Hace 5 horas</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start gap-1 py-3">
-                <span className="font-medium text-sm">Presupuesto actualizado</span>
-                <span className="text-xs text-muted-foreground">Se aprobó incremento para pavimentación</span>
-                <span className="text-xs text-muted-foreground">Ayer</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button variant="ghost" size="icon">
-            <Settings className="h-5 w-5" />
-          </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="gap-2">
-                <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-                  <User className="h-4 w-4 text-primary-foreground" />
-                </div>
-                <div className="hidden md:block text-left">
-                  <p className="text-sm font-medium">Secretario</p>
-                  <p className="text-xs text-muted-foreground">Administrador</p>
-                </div>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Perfil</DropdownMenuItem>
-              <DropdownMenuItem>Configuración</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Cerrar Sesión</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
       </div>
     </header>
   );
