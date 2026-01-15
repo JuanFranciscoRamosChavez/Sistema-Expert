@@ -6,7 +6,8 @@ import {
 	LayoutGrid, 
 	List as ListIcon, 
 	MapPin,
-	User
+	X,
+	SlidersHorizontal // Icono para botón de filtros
 } from 'lucide-react';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { ProjectDetail } from '@/components/projects/ProjectDetail';
@@ -19,6 +20,16 @@ import {
 	SelectTrigger, 
 	SelectValue 
 } from "@/components/ui/select";
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+	SheetFooter,
+	SheetClose
+} from "@/components/ui/sheet";
 import {
 	Table,
 	TableBody,
@@ -71,7 +82,6 @@ export function ProjectsView() {
 	}, []);
 
 	// --- EXTRACCIÓN DE OPCIONES PARA FILTROS ---
-	// Usamos useMemo para no recalcular esto en cada render
 	const uniqueAreas = useMemo(() => {
 		const areas = projects.map(p => p.direccion).filter(Boolean);
 		return Array.from(new Set(areas)).sort();
@@ -84,21 +94,24 @@ export function ProjectsView() {
 
 	// --- LÓGICA DE FILTRADO ---
 	const filteredProjects = projects.filter(p => {
-		// 1. Buscador (Nombre o Responsable)
 		const matchesSearch = 
 			p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
 			p.responsable?.toLowerCase().includes(searchTerm.toLowerCase());
-		
-		// 2. Filtro de Área
 		const matchesArea = selectedArea === 'all' || p.direccion === selectedArea;
-
-		// 3. Filtro de Estatus
 		const matchesStatus = selectedStatus === 'all' || p.status === selectedStatus;
-
 		return matchesSearch && matchesArea && matchesStatus;
 	});
 
-	// --- FORMATO DE MONEDA ---
+	// --- FUNCIÓN PARA LIMPIAR FILTROS ---
+	const clearFilters = () => {
+		setSearchTerm('');
+		setSelectedArea('all');
+		setSelectedStatus('all');
+	};
+
+	// Detectar si hay filtros activos para mostrar botón de limpieza
+	const hasActiveFilters = searchTerm !== '' || selectedArea !== 'all' || selectedStatus !== 'all';
+
 	const formatMoney = (amount: number) => {
 		return new Intl.NumberFormat('es-MX', {
 			style: 'currency',
@@ -108,7 +121,6 @@ export function ProjectsView() {
 		}).format(amount);
 	};
 
-	// --- STATUS LABEL HELPER ---
 	const getStatusLabel = (status: string) => {
 		const labels: Record<string, string> = {
 			planificado: 'Planificado',
@@ -120,37 +132,60 @@ export function ProjectsView() {
 		return labels[status] || status;
 	};
 
-	// --- RENDERIZADO DE CARGA Y ERROR ---
-	if (loading) {
-		return (
-			<div className="flex h-96 items-center justify-center gap-2 text-muted-foreground">
-				<div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-				Cargando cartera...
+	// --- COMPONENTE DE SELECTORES (Para reusar en Desktop y Mobile) ---
+	const FilterControls = () => (
+		<>
+			{/* Filtro: Áreas */}
+			<div className="w-full md:w-[240px]">
+				<Select value={selectedArea} onValueChange={setSelectedArea}>
+					<SelectTrigger className="bg-background/60">
+						<div className="flex items-center gap-2 truncate">
+							<Filter className="h-3.5 w-3.5 text-muted-foreground" />
+							<SelectValue placeholder="Todas las áreas" />
+						</div>
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="all">Todas las áreas</SelectItem>
+						{uniqueAreas.map(area => (
+							<SelectItem key={area} value={area}>{area}</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
 			</div>
-		);
-	}
 
-	if (error) {
-		return (
-			<div className="flex h-96 flex-col items-center justify-center gap-4 text-center">
-				<div className="bg-destructive/10 p-4 rounded-full">
-					<AlertTriangle className="h-8 w-8 text-destructive" />
-				</div>
-				<div className="space-y-1">
-					<h3 className="font-semibold text-lg">Error de Carga</h3>
-					<p className="text-muted-foreground">{error}</p>
-				</div>
-				<Button onClick={() => window.location.reload()} variant="outline">
-					Reintentar
-				</Button>
+			{/* Filtro: Estatus */}
+			<div className="w-full md:w-[200px]">
+				<Select value={selectedStatus} onValueChange={setSelectedStatus}>
+					<SelectTrigger className="bg-background/60">
+						<SelectValue placeholder="Todos los estatus" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="all">Todos los estatus</SelectItem>
+						{uniqueStatuses.map(status => (
+							<SelectItem key={status} value={status}>
+								{getStatusLabel(status)}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
 			</div>
-		);
-	}
+		</>
+	);
+
+	if (loading) return <div className="flex h-96 items-center justify-center gap-2 text-muted-foreground"><div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />Cargando cartera...</div>;
+	
+	if (error) return (
+		<div className="flex h-96 flex-col items-center justify-center gap-4 text-center">
+			<div className="bg-destructive/10 p-4 rounded-full"><AlertTriangle className="h-8 w-8 text-destructive" /></div>
+			<div className="space-y-1"><h3 className="font-semibold text-lg">Error de Carga</h3><p className="text-muted-foreground">{error}</p></div>
+			<Button onClick={() => window.location.reload()} variant="outline">Reintentar</Button>
+		</div>
+	);
 
 	return (
 		<div className="space-y-6 animate-fade-in pb-8">
 			
-			{/* 1. ENCABEZADO Y CONTROLES SUPERIORES */}
+			{/* 1. ENCABEZADO */}
 			<div className="flex flex-col gap-4">
 				<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 					<div>
@@ -160,72 +195,124 @@ export function ProjectsView() {
 						</Subtitle>
 					</div>
 
-					{/* Toggle Grid/List (Solo Desktop) */}
+					{/* Toggle View (Solo Desktop) */}
 					<div className="hidden md:flex bg-muted p-1 rounded-lg border border-border">
-						<button
-							onClick={() => setViewMode('grid')}
-							className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-							title="Vista de Cuadrícula"
-						>
+						<button onClick={() => setViewMode('grid')} className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title="Cuadrícula">
 							<LayoutGrid className="h-4 w-4" />
 						</button>
-						<button
-							onClick={() => setViewMode('list')}
-							className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-							title="Vista de Lista"
-						>
+						<button onClick={() => setViewMode('list')} className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title="Lista">
 							<ListIcon className="h-4 w-4" />
 						</button>
 					</div>
 				</div>
 				
-				{/* 2. BARRA DE FILTROS */}
-				<div className="flex flex-col md:flex-row gap-3 items-center bg-card p-4 rounded-xl border border-border shadow-sm">
+				{/* 2. BARRA DE FILTROS FLUIDA */}
+				<div className="flex gap-3 items-center bg-card p-3 rounded-xl border border-border shadow-sm">
 					
-					{/* Buscador */}
-					<div className="relative w-full md:flex-1">
+					{/* BUSCADOR (Siempre visible y ocupa el espacio disponible) */}
+					<div className="relative flex-1">
 						<Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
 						<Input 
-							placeholder="Buscar por nombre o responsable..." 
-							className="pl-9 bg-muted/30"
+							placeholder="Buscar proyecto por nombre o responsable..." 
+							className="pl-9 bg-muted/30 border-transparent focus:bg-background transition-colors"
 							value={searchTerm}
 							onChange={(e) => setSearchTerm(e.target.value)}
 						/>
+						{/* Botón X dentro del input para limpiar solo texto */}
+						{searchTerm && (
+							<button onClick={() => setSearchTerm('')} className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground">
+								<X className="h-4 w-4" />
+							</button>
+						)}
 					</div>
 
-					{/* Filtro: Áreas Responsables */}
-					<div className="w-full md:w-[240px]">
-						<Select value={selectedArea} onValueChange={setSelectedArea}>
-							<SelectTrigger className="bg-muted/30">
-								<div className="flex items-center gap-2 truncate">
-									<Filter className="h-3.5 w-3.5 text-muted-foreground" />
-									<SelectValue placeholder="Todas las áreas" />
+					{/* FILTROS DESKTOP (Visibles en md+) */}
+					<div className="hidden md:flex gap-3 items-center">
+						<div className="w-[1px] h-8 bg-border mx-1" /> {/* Separador vertical */}
+						<FilterControls />
+						
+						{/* Botón Limpiar Todo (Desktop) */}
+						{hasActiveFilters && (
+							<Button 
+								variant="ghost" 
+								size="sm" 
+								onClick={clearFilters}
+								className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+							>
+								Limpiar
+								<X className="ml-2 h-3 w-3" />
+							</Button>
+						)}
+					</div>
+
+					{/* FILTROS MOBILE (Botón que abre Modal/Sheet) */}
+					<div className="md:hidden">
+						<Sheet>
+							<SheetTrigger asChild>
+								<Button variant="outline" size="icon" className={hasActiveFilters ? "border-primary text-primary bg-primary/5" : ""}>
+									<SlidersHorizontal className="h-4 w-4" />
+									{/* Indicador de filtro activo */}
+									{(selectedArea !== 'all' || selectedStatus !== 'all') && (
+										<span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
+									)}
+								</Button>
+							</SheetTrigger>
+							<SheetContent side="bottom" className="rounded-t-[20px] h-auto max-h-[85vh]">
+								<SheetHeader className="mb-4 text-left">
+									<SheetTitle>Filtros Avanzados</SheetTitle>
+									<SheetDescription>
+										Refina la búsqueda por área o estado del proyecto.
+									</SheetDescription>
+								</SheetHeader>
+								
+								<div className="flex flex-col gap-4 py-4">
+									<div className="space-y-2">
+										<span className="text-sm font-medium">Área Responsable</span>
+										<Select value={selectedArea} onValueChange={setSelectedArea}>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Todas" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="all">Todas las áreas</SelectItem>
+												{uniqueAreas.map(area => (
+													<SelectItem key={area} value={area}>{area}</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+
+									<div className="space-y-2">
+										<span className="text-sm font-medium">Estatus Actual</span>
+										<Select value={selectedStatus} onValueChange={setSelectedStatus}>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Todos" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="all">Todos los estatus</SelectItem>
+												{uniqueStatuses.map(status => (
+													<SelectItem key={status} value={status}>
+														{getStatusLabel(status)}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
 								</div>
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">Todas las áreas</SelectItem>
-								{uniqueAreas.map(area => (
-									<SelectItem key={area} value={area}>{area}</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
 
-					{/* Filtro: Estatus */}
-					<div className="w-full md:w-[200px]">
-						<Select value={selectedStatus} onValueChange={setSelectedStatus}>
-							<SelectTrigger className="bg-muted/30">
-								<SelectValue placeholder="Todos los estatus" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">Todos los estatus</SelectItem>
-								{uniqueStatuses.map(status => (
-									<SelectItem key={status} value={status}>
-										{getStatusLabel(status)}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+								<SheetFooter className="flex-row gap-3 pt-4 border-t border-border mt-2">
+									<Button 
+										variant="outline" 
+										className="flex-1"
+										onClick={clearFilters}
+									>
+										Limpiar Todo
+									</Button>
+									<SheetClose asChild>
+										<Button className="flex-1">Ver {filteredProjects.length} Resultados</Button>
+									</SheetClose>
+								</SheetFooter>
+							</SheetContent>
+						</Sheet>
 					</div>
 				</div>
 			</div>
@@ -233,7 +320,7 @@ export function ProjectsView() {
 			{/* 3. CONTENIDO PRINCIPAL */}
 			{filteredProjects.length > 0 ? (
 				<>
-					{/* VISTA GRID (Tarjetas) */}
+					{/* GRID VIEW */}
 					{viewMode === 'grid' && (
 						<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-in fade-in zoom-in-95 duration-300">
 							{filteredProjects.map((project) => (
@@ -242,7 +329,7 @@ export function ProjectsView() {
 						</div>
 					)}
 
-					{/* VISTA LIST (Tabla) */}
+					{/* LIST VIEW */}
 					{viewMode === 'list' && (
 						<div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden animate-in fade-in zoom-in-95 duration-300">
 							<div className="overflow-x-auto">
@@ -259,62 +346,35 @@ export function ProjectsView() {
 									<TableBody>
 										{filteredProjects.map((project) => {
 											const statusColor = STATUS_COLORS[project.status as keyof typeof STATUS_COLORS] || APP_COLORS.neutral;
-											
 											return (
 												<Dialog key={project.id}>
 													<DialogTrigger asChild>
 														<TableRow className="cursor-pointer hover:bg-muted/50 transition-colors">
 															<TableCell className="pl-6 py-4">
 																<div className="flex flex-col gap-1">
-																	<span className="font-semibold text-foreground line-clamp-2 leading-tight">
-																		{project.nombre}
-																	</span>
-																	<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-																		<MapPin className="h-3 w-3" />
-																		{project.direccion}
-																	</div>
+																	<span className="font-semibold text-foreground line-clamp-2 leading-tight">{project.nombre}</span>
+																	<div className="flex items-center gap-1.5 text-xs text-muted-foreground"><MapPin className="h-3 w-3" />{project.direccion}</div>
 																</div>
 															</TableCell>
-															
 															<TableCell>
 																<div className="flex items-center gap-2 text-sm text-foreground">
 																	<div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
 																		{project.responsable ? project.responsable.substring(0,2).toUpperCase() : 'NA'}
 																	</div>
-																	<span className="truncate max-w-[120px]" title={project.responsable}>
-																		{project.responsable || 'Sin asignar'}
-																	</span>
+																	<span className="truncate max-w-[120px]" title={project.responsable}>{project.responsable || 'Sin asignar'}</span>
 																</div>
 															</TableCell>
-
 															<TableCell>
-																<Badge 
-																	variant="outline" 
-																	className="capitalize text-[10px] font-bold tracking-wider"
-																	style={{ 
-																		color: statusColor, 
-																		borderColor: statusColor,
-																		backgroundColor: `${statusColor}10` 
-																	}}
-																>
+																<Badge variant="outline" className="capitalize text-[10px] font-bold tracking-wider" style={{ color: statusColor, borderColor: statusColor, backgroundColor: `${statusColor}10` }}>
 																	{getStatusLabel(project.status)}
 																</Badge>
 															</TableCell>
-
 															<TableCell>
-																<div className="w-[100px] space-y-1">
-																	<span className="text-xs font-bold">{project.avance.toFixed(1)}%</span>
-																	<Progress value={project.avance} className="h-1.5" indicatorColor={statusColor} />
-																</div>
+																<div className="w-[100px] space-y-1"><span className="text-xs font-bold">{project.avance.toFixed(1)}%</span><Progress value={project.avance} className="h-1.5" indicatorColor={statusColor} /></div>
 															</TableCell>
-
-															<TableCell className="text-right pr-6 font-mono text-sm font-medium">
-																{formatMoney(project.presupuesto)}
-															</TableCell>
+															<TableCell className="text-right pr-6 font-mono text-sm font-medium">{formatMoney(project.presupuesto)}</TableCell>
 														</TableRow>
 													</DialogTrigger>
-													
-													{/* Reutilizamos el mismo detalle que en las tarjetas */}
 													<ProjectDetail project={project} />
 												</Dialog>
 											);
@@ -326,26 +386,11 @@ export function ProjectsView() {
 					)}
 				</>
 			) : (
-				// ESTADO VACÍO (Sin resultados)
-				<div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-border rounded-xl">
-					<div className="bg-muted p-4 rounded-full mb-3">
-						<Search className="h-8 w-8 text-muted-foreground" />
-					</div>
+				<div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-border rounded-xl animate-in fade-in zoom-in-95">
+					<div className="bg-muted p-4 rounded-full mb-3"><Search className="h-8 w-8 text-muted-foreground" /></div>
 					<h3 className="font-semibold text-lg text-foreground">No se encontraron proyectos</h3>
-					<p className="text-muted-foreground max-w-sm mt-1">
-						Intenta ajustar los filtros de área, estatus o el término de búsqueda.
-					</p>
-					<Button 
-						variant="link" 
-						onClick={() => {
-							setSearchTerm('');
-							setSelectedArea('all');
-							setSelectedStatus('all');
-						}}
-						className="mt-2 text-primary"
-					>
-						Limpiar filtros
-					</Button>
+					<p className="text-muted-foreground max-w-sm mt-1">Intenta ajustar los filtros de área, estatus o el término de búsqueda.</p>
+					<Button variant="link" onClick={clearFilters} className="mt-2 text-primary">Limpiar filtros</Button>
 				</div>
 			)}
 		</div>
