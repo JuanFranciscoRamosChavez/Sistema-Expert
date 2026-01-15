@@ -1,5 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { Project } from '@/lib/mockData';
+import { APP_COLORS } from '@/lib/theme';
 
 interface Props {
   projects: Project[];
@@ -7,10 +8,9 @@ interface Props {
 
 export function BudgetChart({ projects }: Props) {
   
-  // 1. NORMALIZACIÓN Y CÁLCULO DE DEVENGADO
+  // 1. NORMALIZACIÓN
   const normalizedData = projects.map(p => {
     const rawBudget = p.presupuesto || 0;
-    
     // Normalizar a Pesos Reales
     const realBudget = rawBudget < 1000000 && rawBudget > 0 
       ? rawBudget * 1000000 
@@ -27,15 +27,15 @@ export function BudgetChart({ projects }: Props) {
     };
   });
 
-  // 2. ORDENAR POR PRESUPUESTO
+  // 2. ORDENAR
   const topProjects = normalizedData
     .filter(p => p.realBudget > 0)
     .sort((a, b) => b.realBudget - a.realBudget) 
     .slice(0, 6);
 
-  // 3. PREPARAR DATOS
+  // 3. DATOS
   const data = topProjects.map(project => ({
-    name: project.nombre.length > 15 ? project.nombre.substring(0, 15) + '...' : project.nombre, // Recorte un poco más corto para móviles
+    name: project.nombre.length > 15 ? project.nombre.substring(0, 15) + '...' : project.nombre,
     fullName: project.nombre,
     presupuesto: project.realBudget,
     devengado: project.devengado,
@@ -43,7 +43,6 @@ export function BudgetChart({ projects }: Props) {
     isOverBudget: project.devengado > project.realBudget
   }));
 
-  // 4. FORMATEADORES
   const formatMoney = (value: number) => {
     if (value === 0) return '$0';
     if (value >= 1000000000) return `$${(value / 1000000000).toFixed(1)} MMD`;
@@ -54,27 +53,27 @@ export function BudgetChart({ projects }: Props) {
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload;
+      const d = payload[0].payload;
       return (
-        <div className="bg-popover/95 backdrop-blur-sm border border-border p-3 rounded-lg shadow-lg text-xs animate-in fade-in zoom-in-95 duration-200 z-50">
-          <p className="font-semibold mb-2 max-w-[250px] text-foreground border-b border-border pb-1 text-wrap">
-            {data.fullName}
+        <div className="bg-white border border-slate-200 p-3 rounded-lg shadow-lg text-xs z-50">
+          <p className="font-bold mb-2 max-w-[200px] text-slate-900 border-b border-slate-100 pb-1">
+            {d.fullName}
           </p>
-          <div className="space-y-1.5">
-            <p className="flex items-center justify-between gap-4 text-foreground">
-              <span className="font-medium">Presupuesto Total:</span>
-              <span className="font-mono font-bold">{formatMoney(data.presupuesto)}</span>
+          <div className="space-y-1">
+            <p className="flex justify-between gap-4 text-slate-600">
+              <span>Presupuesto:</span>
+              <span className="font-mono font-bold text-slate-900">{formatMoney(d.presupuesto)}</span>
             </p>
-            <p className="flex items-center justify-between gap-4 text-foreground">
-              <span className="font-medium">Avance Físico:</span>
-              <span className="font-mono font-bold">{data.avance.toFixed(1)}%</span>
+            <p className="flex justify-between gap-4 text-slate-600">
+              <span>Avance:</span>
+              <span className="font-mono font-bold text-slate-900">{d.avance.toFixed(1)}%</span>
             </p>
-            <div className="flex items-center justify-between gap-4 pt-1 border-t border-border mt-1">
-              <span className="font-bold" style={{ color: data.isOverBudget ? '#ef4444' : '#10b981' }}>
-                Devengado (Valor Ganado):
+            <div className="flex justify-between gap-4 pt-1 border-t border-slate-100 mt-1">
+              <span className={d.isOverBudget ? "text-red-500 font-bold" : "text-emerald-600 font-bold"}>
+                Devengado:
               </span>
-              <span className="font-mono font-bold" style={{ color: data.isOverBudget ? '#ef4444' : '#10b981' }}>
-                {formatMoney(data.devengado)}
+              <span className={d.isOverBudget ? "text-red-500 font-mono font-bold" : "text-emerald-600 font-mono font-bold"}>
+                {formatMoney(d.devengado)}
               </span>
             </div>
           </div>
@@ -85,10 +84,8 @@ export function BudgetChart({ projects }: Props) {
   };
 
   return (
-    // CAMBIO DE ALTURA: h-[350px] en móvil, md:h-[400px] en escritorio.
-    // Esto iguala exactamente al componente ProjectsStatusChart.
     <div className="bg-card rounded-xl border border-border shadow-sm flex flex-col h-[350px] md:h-[400px] animate-fade-in delay-200">
-      <div className="p-5 md:p-6 border-b border-border">
+      <div className="p-5 border-b border-border">
         <h3 className="font-display font-bold text-lg text-foreground">Top 6 Proyectos (Devengado)</h3>
         <p className="text-sm text-muted-foreground">Avance financiero real vs Presupuesto Total</p>
       </div>
@@ -101,13 +98,13 @@ export function BudgetChart({ projects }: Props) {
             margin={{ left: 0, right: 30, top: 10, bottom: 0 }}
             barGap={-24} 
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} opacity={0.5} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} opacity={0.5} />
             
             <XAxis 
               type="number" 
               tickFormatter={formatMoney} 
-              // COLOR NEGRO (foreground) para contraste máximo
-              tick={{ fontSize: 10, fill: 'hsl(var(--foreground))', fontWeight: 600 }} 
+              // AHORA USA EL COLOR HEXADECIMAL DIRECTO
+              tick={{ fontSize: 10, fill: APP_COLORS.textMain, fontWeight: 600 }} 
               axisLine={false}
               tickLine={false}
             />
@@ -116,14 +113,14 @@ export function BudgetChart({ projects }: Props) {
               dataKey="name" 
               type="category" 
               width={140} 
-              // COLOR NEGRO (foreground)
-              tick={{ fontSize: 11, fill: 'hsl(var(--foreground))', fontWeight: 600 }} 
+              // AHORA USA EL COLOR HEXADECIMAL DIRECTO
+              tick={{ fontSize: 11, fill: APP_COLORS.textMain, fontWeight: 600 }} 
               interval={0}
               axisLine={false}
               tickLine={false}
             />
             
-            <Tooltip content={<CustomTooltip />} cursor={{fill: 'hsl(var(--muted)/0.2)', radius: 4}} />
+            <Tooltip content={<CustomTooltip />} cursor={{fill: '#f1f5f9', radius: 4}} />
             
             <Legend 
               verticalAlign="top" 
@@ -131,26 +128,24 @@ export function BudgetChart({ projects }: Props) {
               iconType="circle"
               iconSize={8}
               wrapperStyle={{ fontSize: '12px', paddingBottom: '10px' }}
-              // LEYENDA NEGRA
-              formatter={(value) => <span style={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}>{value}</span>}
+              // FORMATEADOR CON COLOR HEX
+              formatter={(value) => <span style={{ color: APP_COLORS.textMain, fontWeight: 600 }}>{value}</span>}
               payload={[
-                { value: 'Presupuesto Total', type: 'circle', color: '#94a3b8' }, 
-                { value: 'Devengado (Avance)', type: 'circle', color: '#10b981' },
-                { value: 'Sobrecosto', type: 'circle', color: '#ef4444' }
+                { value: 'Presupuesto Total', type: 'circle', color: APP_COLORS.backgroundBar }, 
+                { value: 'Devengado (Avance)', type: 'circle', color: APP_COLORS.success },
+                { value: 'Sobrecosto', type: 'circle', color: APP_COLORS.danger }
               ]}
             />
             
-            {/* BARRA DE FONDO: Gris un poco más oscuro (#cbd5e1 - Slate 300) para que se note bien */}
             <Bar 
               dataKey="presupuesto" 
               name="Presupuesto Total" 
-              fill="#cbd5e1" 
+              fill={APP_COLORS.backgroundBar} 
               radius={[0, 4, 4, 0]} 
               barSize={20} 
               isAnimationActive={false} 
             />
 
-            {/* BARRA DE PROGRESO */}
             <Bar 
               dataKey="devengado" 
               name="Devengado" 
@@ -160,7 +155,7 @@ export function BudgetChart({ projects }: Props) {
               {data.map((entry, index) => (
                 <Cell 
                   key={`cell-${index}`} 
-                  fill={entry.isOverBudget ? '#ef4444' : '#10b981'} 
+                  fill={entry.isOverBudget ? APP_COLORS.danger : APP_COLORS.success} 
                 />
               ))}
             </Bar>

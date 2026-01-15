@@ -1,5 +1,6 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { Project } from '@/lib/mockData';
+import { APP_COLORS, STATUS_COLORS } from '@/lib/theme';
 
 interface ProjectsStatusChartProps {
   projects: Project[];
@@ -7,33 +8,34 @@ interface ProjectsStatusChartProps {
 
 export function ProjectsStatusChart({ projects }: ProjectsStatusChartProps) {
   
+  // Usamos las constantes importadas en lugar de escribir los códigos hexa
   const data = [
     { 
       name: 'Completado', 
       value: projects.filter(p => p.status === 'completado').length, 
-      color: '#10b981' 
+      color: STATUS_COLORS.completado 
     },
     { 
       name: 'En Ejecución', 
       value: projects.filter(p => p.status === 'en_ejecucion').length, 
-      color: '#3b82f6' 
+      color: STATUS_COLORS.en_ejecucion
     },
     { 
       name: 'En Riesgo', 
       value: projects.filter(p => p.status === 'en_riesgo').length, 
-      color: '#ef4444' 
+      color: STATUS_COLORS.en_riesgo
     },
     { 
       name: 'Planificado', 
       value: projects.filter(p => p.status === 'planificado').length, 
-      color: '#94a3b8' 
+      color: STATUS_COLORS.planificado
     },
     {
       name: 'Retrasado',
       value: projects.filter(p => p.status === 'retrasado').length,
-      color: '#f59e0b' 
+      color: STATUS_COLORS.retrasado
     }
-  ].filter(item => item.value > 0); 
+  ].filter(item => item.value > 0);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
