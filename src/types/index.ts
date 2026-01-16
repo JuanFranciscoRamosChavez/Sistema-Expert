@@ -14,10 +14,18 @@ export interface APIProject {
 	avance_fisico_pct: number;
 	avance_financiero_pct: number;
 	semaforo: 'ROJO' | 'AMARILLO' | 'VERDE';
+
+	// --- BLOQUE 4: Priorización Estratégica (Nuevos Campos) ---
+	alineacion_estrategica: number;
+	impacto_social_nivel: number;
+	urgencia: number; // Nota: Antes usabas urgencia_num, asegúrate que el backend mande este nombre
+	viabilidad_ejecucion: number;
+	recursos_disponibles: number;
+	riesgo_nivel: number;
+	dependencias_nivel: number;
 	
 	// Datos crudos
 	urgencia_num: number;
-	riesgo_nivel: number; // <--- ESTE ES EL DATO CLAVE
 	beneficiarios_num: number;
 	
 	// Fechas

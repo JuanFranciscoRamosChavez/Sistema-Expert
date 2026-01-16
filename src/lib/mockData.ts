@@ -1,5 +1,5 @@
 export type ProjectStatus = 'en_ejecucion' | 'planificado' | 'completado' | 'retrasado' | 'en_riesgo';
-export type Priority = 'critica' | 'alta' | 'media' | 'baja';
+export type Priority = 'baja' | 'media' | 'alta' | 'muy_alta' | 'critica';
 export type Viability = 'alta' | 'media' | 'baja';
 
 export interface Project {
@@ -28,6 +28,7 @@ export interface Project {
     unidad: string;
   }[];
   riesgo: number;
+  puntajePrioridad?: number;
 }
 
 // --- Helpers ---
@@ -45,6 +46,7 @@ export const getStatusLabel = (status: ProjectStatus): string => {
 export const getPriorityLabel = (priority: Priority): string => {
   const labels: Record<Priority, string> = {
     critica: 'Crítica',
+    muy_alta: 'Muy Alta',
     alta: 'Alta',
     media: 'Media',
     baja: 'Baja',

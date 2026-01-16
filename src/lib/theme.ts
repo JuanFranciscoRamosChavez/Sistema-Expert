@@ -7,6 +7,12 @@ export const APP_COLORS = {
   info: '#3b82f6',    // Blue 500    - Para ejecución/informativo
   warning: '#f59e0b', // Amber 500   - Para alertas medias/retrasos
   danger: '#ef4444',  // Red 500     - Para riesgo alto/crítico
+
+  primary: "#0f172a",
+	secondary: "#64748b",
+	accent: "#3b82f6",
+	background: "#f8fafc",
+	surface: "#ffffff",
   
   // Elementos de UI
   neutral: '#94a3b8',    // Slate 400 - Para elementos planificados/inactivos
@@ -26,8 +32,9 @@ export const STATUS_COLORS = {
 
 // Mapa para prioridades
 export const PRIORITY_COLORS = {
-  critica: APP_COLORS.danger,
-  alta: APP_COLORS.warning, // O podrías usar un naranja: '#f97316'
-  media: APP_COLORS.info,
-  baja: APP_COLORS.neutral
+  critica: "#ef4444",   // Rojo (4.5 - 5.0)
+	muy_alta: "#f97316",  // Naranja Intenso (3.5 - 4.4) <-- NUEVO
+	alta: "#f59e0b",      // Ámbar (2.5 - 3.4)
+	media: "#3b82f6",     // Azul (1.5 - 2.4)
+	baja: "#10b981"       // Verde (1.0 - 1.4)
 };

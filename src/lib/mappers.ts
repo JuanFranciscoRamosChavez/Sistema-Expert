@@ -2,11 +2,39 @@ import { APIProject } from '@/types';
 import { Project, ProjectStatus, Priority, Viability } from '@/lib/mockData';
 
 export function mapApiToUiProject(apiProject: APIProject): Project {
+  // 1. OBTENER VALORES DE LOS 7 CRITERIOS (Bloque 4)
+	// Usamos 1 como default para no romper el promedio si falta un dato
+	const c1 = Number(apiProject.alineacion_estrategica) || 1;
+	const c2 = Number(apiProject.impacto_social_nivel) || 1;
+	const c3 = Number(apiProject.urgencia) || 1;
+	const c4 = Number(apiProject.viabilidad_ejecucion) || 1;
+	const c5 = Number(apiProject.recursos_disponibles) || 1;
+	const c6 = Number(apiProject.riesgo_nivel) || 1;
+	const c7 = Number(apiProject.dependencias_nivel) || 1;
+
+	// 2. CALCULAR PROMEDIO PONDERADO
+	// Promedio simple de los 7 factores
+	const sumaPuntaje = c1 + c2 + c3 + c4 + c5 + c6 + c7;
+	const puntajeFinal = sumaPuntaje / 7;
+
+	// 3. DETERMINAR NIVEL DE PRIORIDAD (Tu tabla de rangos)
+	let prioridad: Priority = 'baja';
+	
+	if (puntajeFinal >= 4.5) {
+		prioridad = 'critica'; // 4.5 - 5.0
+	} else if (puntajeFinal >= 3.5) {
+		prioridad = 'muy_alta'; // 3.5 - 4.4
+	} else if (puntajeFinal >= 2.5) {
+		prioridad = 'alta'; // 2.5 - 3.4
+	} else if (puntajeFinal >= 1.5) {
+		prioridad = 'media'; // 1.5 - 2.4
+	} else {
+		prioridad = 'baja'; // 1.0 - 1.4
+	}
+
   // Variables auxiliares para código más limpio
   const avanceFisico = apiProject.avance_fisico_pct || 0;
   const avanceFinanciero = apiProject.avance_financiero_pct || 0;
-  const nivelRiesgo = apiProject.riesgo_nivel || 0;
-  const urgencia = apiProject.urgencia_num || 0;
 
   // --- LÓGICA DE ESTATUS JERÁRQUICA (CORREGIDA) ---
   let status: ProjectStatus = 'planificado';
@@ -21,7 +49,7 @@ export function mapApiToUiProject(apiProject: APIProject): Project {
   // 2. PRIORIDAD ALTA: EN RIESGO
   // Solo entramos aquí si NO está completado (< 99.9%).
   // Si el riesgo es alto (4 o 5), se marca rojo inmediatamente.
-  else if (nivelRiesgo > 3) {
+  else if (c6 > 3) {
     status = 'en_riesgo';
   }
   
@@ -39,15 +67,15 @@ export function mapApiToUiProject(apiProject: APIProject): Project {
     status = 'planificado';
   }
 
-  // --- LÓGICA VISUAL (Prioridad y Viabilidad) ---
-  let prioridad: Priority = 'baja';
-  if (urgencia >= 5) prioridad = 'critica';
-  else if (urgencia === 4) prioridad = 'alta';
-  else if (urgencia === 3) prioridad = 'media';
+  let viabilidad: Viability = 'media';
+	if (c4 >= 4) viabilidad = 'alta';      // 4-5 Alta
+	else if (c4 <= 2) viabilidad = 'baja'; // 1-2 Baja
+	// 3 es Media
 
-  let viabilidad: Viability = 'alta';
-  if (nivelRiesgo >= 4) viabilidad = 'baja';
-  else if (nivelRiesgo === 3) viabilidad = 'media';
+	// 6. RIESGOS (Texto)
+	const listaRiesgos = apiProject.problemas_identificados 
+		? apiProject.problemas_identificados.split(/[|;]+/).map(s => s.trim()).filter(Boolean)
+		: [];
 
   return {
     id: apiProject.id.toString(),
@@ -57,18 +85,19 @@ export function mapApiToUiProject(apiProject: APIProject): Project {
     responsable: apiProject.responsable_operativo || 'No asignado',
     presupuesto: apiProject.presupuesto_final || 0,
     ejecutado: apiProject.monto_ejecutado || 0,
-    status, // Aquí va el estatus corregido
+    status, 
     prioridad,
     viabilidad,
-    riesgo: nivelRiesgo,
+    riesgo: c6,
+    puntajePrioridad: Number(puntajeFinal.toFixed(2)), 
     fechaInicio: apiProject.fecha_inicio_prog || new Date().toISOString(),
     fechaFin: apiProject.fecha_termino_prog || new Date().toISOString(),
     beneficiarios: apiProject.beneficiarios_num || 0,
     ubicacion: apiProject.ubicacion_especifica || 'Múltiples',
     zona: 'multiple',
     objetivos: [apiProject.problema_resuelve].filter(Boolean) as string[],
-    riesgos: [apiProject.problemas_identificados].filter(Boolean) as string[],
-    avance: avanceFisico, // Mantenemos el avance físico real para la barra de progreso
+    riesgos: listaRiesgos,
+    avance: avanceFisico, 
     indicadores: []
   };
 }
