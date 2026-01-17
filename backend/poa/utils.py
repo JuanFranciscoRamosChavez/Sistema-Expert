@@ -9,8 +9,6 @@ CATALOGO_ESCALAS = {
 	"regular": 3, "medio": 3, "media": 3,
 	"alto": 4, "alta": 4, 
 	"muy alto": 5, "muy alta": 5,
-	"critico": 5, "critica": 5, "urgente": 5, "prioritario": 5,
-	"rojo": 5, "amarillo": 3, "verde": 1
 }
 
 def clean_money_vectorized(valor):
@@ -67,7 +65,6 @@ def interpretar_escala_flexible(valor):
 		if key in val_str: return num
 	return 1
 
-# --- LÓGICA MEJORADA PARA ABREVIATURAS (1M, 10k) ---
 def clean_beneficiarios_advanced(valor):
 	"""
 	Limpia texto de beneficiarios detectando magnitudes y abreviaturas.

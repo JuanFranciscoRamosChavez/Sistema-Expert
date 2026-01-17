@@ -1,6 +1,5 @@
 from django.core.management.base import BaseCommand
 from poa.models import Obra
-# Importamos la función actualizada
 from poa.utils import clean_money_vectorized, clean_percentage_vectorized, interpretar_escala_flexible, clean_beneficiarios_advanced
 import pandas as pd
 import os
@@ -81,7 +80,6 @@ class Command(BaseCommand):
 					alcaldias=safe_str(row[34]),
 					ubicacion_especifica=safe_str(row[35]),
 					beneficiarios_directos=safe_str(row[36]),
-					# AQUI SE APLICA LA NUEVA LÓGICA
 					beneficiarios_num=clean_beneficiarios_advanced(row[36]),
 					
 					poblacion_objetivo_num=safe_str(row[37]),

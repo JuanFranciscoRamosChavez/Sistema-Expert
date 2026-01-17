@@ -2,48 +2,48 @@ from django.db import models
 
 class Obra(models.Model):
     # --- BLOQUE 1: Identificación del Proyecto (Cols 0-3) ---
-    id_excel = models.IntegerField(null=True)            # col 0: id
-    programa = models.TextField(null=True, blank=True)   # col 1
+    id_excel = models.IntegerField(null=True)            # col 0: id (El valor numérico único de cada fila en el Excel)
+    programa = models.TextField(null=True, blank=True)   # col 1 
     area_responsable = models.CharField(max_length=255, null=True, blank=True) # col 2
     eje_institucional = models.CharField(max_length=255, null=True, blank=True) # col 3
 
     # --- BLOQUE 2: Información Presupuestal y de Metas (Cols 4-14) ---
     tipo_recurso = models.CharField(max_length=255, null=True, blank=True)      # col 4
     concentrado_programas = models.CharField(max_length=255, null=True, blank=True) # col 5
-    capitulo_gasto = models.CharField(max_length=100, null=True, blank=True)    # col 6
+    capitulo_gasto = models.CharField(max_length=255, null=True, blank=True)    # col 6 (Cambio a CharField)
     presupuesto_modificado = models.FloatField(default=0)  # col 7
     anteproyecto_total = models.FloatField(default=0)      # col 8
     meta_2025 = models.FloatField(default=0)               # col 9
     meta_2026 = models.FloatField(default=0)               # col 10
     unidad_medida = models.CharField(max_length=100, null=True, blank=True) # col 11
     costo_unitario = models.FloatField(default=0)          # col 12
-    proyecto_presupuesto = models.FloatField(null=True, blank=True) # col 13
-    multianualidad = models.CharField(max_length=50, null=True, blank=True) # col 14
+    proyecto_presupuesto = models.CharField(max_length=255, null=True, blank=True) # col 13 (Cambio a CharField)
+    multianualidad = models.CharField(max_length=50, null=True, blank=True) # col 14 (Sabremos si el proyecto es multianual o no)
 
     # --- BLOQUE 3: Categorización del Proyecto (Cols 15-20) ---
     tipo_obra = models.CharField(max_length=255, null=True, blank=True)          # col 15
     alcance_territorial = models.TextField(null=True, blank=True)                # col 16
     fuente_financiamiento = models.CharField(max_length=255, null=True, blank=True) # col 17
     etapa_desarrollo = models.CharField(max_length=255, null=True, blank=True)   # col 18
-    complejidad_tecnica = models.IntegerField(default=1)    # col 19
+    complejidad_tecnica = models.IntegerField(default=1)    # col 19 (Tomado como IntegerField para semáforo el cual sera del 1 al 5)
     impacto_social_desc = models.TextField(null=True, blank=True)    # col 20 
 
     # --- BLOQUE 4: Priorización Estratégica (Cols 21-28) ---
-    alineacion_estrategica = models.IntegerField(default=1) # col 21
-    impacto_social_nivel = models.IntegerField(default=1)   # col 22
-    urgencia = models.IntegerField(default=1)               # col 23
-    viabilidad_ejecucion = models.IntegerField(default=1)   # col 24
-    recursos_disponibles = models.IntegerField(default=1)   # col 25
-    riesgo_nivel = models.IntegerField(default=1)           # col 26
-    dependencias_nivel = models.IntegerField(default=1)     # col 27
-    puntuacion_final_ponderada = models.FloatField(null=True, blank=True) # col 28
+    alineacion_estrategica = models.IntegerField(default=1) # col 21 (Tomado como IntegerField para semáforo el cual sera del 1 al 5)
+    impacto_social_nivel = models.IntegerField(default=1)   # col 22 (Tomado como IntegerField para semáforo el cual sera del 1 al 5)
+    urgencia = models.IntegerField(default=1)               # col 23 (Tomado como IntegerField para semáforo el cual sera del 1 al 5)
+    viabilidad_ejecucion = models.IntegerField(default=1)   # col 24 (Tomado como IntegerField para semáforo el cual sera del 1 al 5)
+    recursos_disponibles = models.IntegerField(default=1)   # col 25 (Tomado como IntegerField para semáforo el cual sera del 1 al 5)
+    riesgo_nivel = models.IntegerField(default=1)           # col 26 (Tomado como IntegerField para semáforo el cual sera del 1 al 5)
+    dependencias_nivel = models.IntegerField(default=1)     # col 27 (Tomado como IntegerField para semáforo el cual sera del 1 al 5)
+    puntuacion_final_ponderada = models.FloatField(null=True, blank=True) # col 28 (Es la puntuación final ponderada calculada de los anteriores)
 
     # --- BLOQUE 5: Viabilidad del Proyecto (Cols 29-33) ---
-    viabilidad_tecnica_semaforo = models.CharField(max_length=50, null=True, blank=True)       # col 29
-    viabilidad_presupuestal_semaforo = models.CharField(max_length=50, null=True, blank=True)  # col 30
-    viabilidad_juridica_semaforo = models.CharField(max_length=50, null=True, blank=True)      # col 31
-    viabilidad_temporal_semaforo = models.CharField(max_length=50, null=True, blank=True)      # col 32
-    viabilidad_administrativa_semaforo = models.CharField(max_length=50, null=True, blank=True)# col 33
+    viabilidad_tecnica_semaforo = models.CharField(max_length=50, null=True, blank=True)       # col 29 (Tomado como CharField para semáforo el cual sera a partir de los valores: Rojo, Amarillo, Verde)
+    viabilidad_presupuestal_semaforo = models.CharField(max_length=50, null=True, blank=True)  # col 30 (Tomado como CharField para semáforo el cual sera a partir de los valores: Rojo, Amarillo, Verde)
+    viabilidad_juridica_semaforo = models.CharField(max_length=50, null=True, blank=True)      # col 31 (Tomado como CharField para semáforo el cual sera a partir de los valores: Rojo, Amarillo, Verde)
+    viabilidad_temporal_semaforo = models.CharField(max_length=50, null=True, blank=True)      # col 32 (Tomado como CharField para semáforo el cual sera a partir de los valores: Rojo, Amarillo, Verde)
+    viabilidad_administrativa_semaforo = models.CharField(max_length=50, null=True, blank=True)# col 33 (Tomado como CharField para semáforo el cual sera a partir de los valores: Rojo, Amarillo, Verde)
 
     # --- BLOQUE 6: Ubicación e Impacto Territorial (Cols 0-3) ---
     alcaldias = models.TextField(null=True, blank=True)            # col 34
