@@ -15,34 +15,69 @@ export interface APIProject {
 	avance_financiero_pct: number;
 	semaforo: 'ROJO' | 'AMARILLO' | 'VERDE';
 
-	// --- BLOQUE 4: Priorización Estratégica (Nuevos Campos) ---
-	alineacion_estrategica: number;
-	impacto_social_nivel: number;
-	urgencia: number; // Nota: Antes usabas urgencia_num, asegúrate que el backend mande este nombre
-	viabilidad_ejecucion: number;
-	recursos_disponibles: number;
-	riesgo_nivel: number;
-	dependencias_nivel: number;
+	// --- BLOQUE 1: Identificación ---
+	eje_institucional?: string;
+
+	// --- BLOQUE 2: Presupuestal y Metas ---
+	tipo_recurso?: string;
+	concentrado_programas?: string;
+	capitulo_gasto?: string;
+	presupuesto_modificado?: number;
+	anteproyecto_total?: number;
+	meta_2025?: number;
+	meta_2026?: number;
+
+	// --- BLOQUE 3: Categorización ---
+	tipo_obra?: string;
+	alcance_territorial?: string;
+	fuente_financiamiento?: string;
+	complejidad_tecnica?: number;
+
+	// --- BLOQUE 4: Priorización Estratégica ---
+	alineacion_estrategica?: number;
+	impacto_social_nivel?: number;
+	urgencia?: number;
+	viabilidad_ejecucion?: number;
+	recursos_disponibles?: number;
+	riesgo_nivel?: number;
+	dependencias_nivel?: number;
+	puntuacion_final_ponderada?: number;
+
+	// --- BLOQUE 5: Viabilidad (Semáforos) ---
+	viabilidad_tecnica_semaforo?: string;
+	viabilidad_presupuestal_semaforo?: string;
+	viabilidad_juridica_semaforo?: string;
+	viabilidad_temporal_semaforo?: string;
+	viabilidad_administrativa_semaforo?: string;
 	
 	// Datos crudos
-	urgencia_num: number;
-	beneficiarios_num: number;
+	urgencia_num?: number;
+	beneficiarios_num?: number;
+	poblacion_objetivo_num?: string;
 	
 	// Fechas
-	fecha_inicio_prog: string;
-	fecha_termino_prog: string;
+	fecha_inicio_prog?: string;
+	fecha_termino_prog?: string;
+	fecha_inicio_real?: string;
+	fecha_termino_real?: string;
+	duracion_meses?: number;
+	ultima_actualizacion?: string;
 	
 	// Ubicación
-	ubicacion_especifica: string;
-	alcaldias: string;
+	ubicacion_especifica?: string;
+	alcaldias?: string;
+	
+	// Personal
+	contratista?: string;
 	
 	// Textos
-	problema_resuelve: string;
-	solucion_ofrece: string;
-	beneficio_ciudadania: string;
-	problemas_identificados: string;
-	acciones_correctivas: string;
-	unidad_medida: string;
+	problema_resuelve?: string;
+	solucion_ofrece?: string;
+	beneficio_ciudadania?: string;
+	problemas_identificados?: string;
+	acciones_correctivas?: string;
+	unidad_medida?: string;
+	dato_destacable?: string;
 	estatus_general?: string;
 }
 
