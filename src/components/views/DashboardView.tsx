@@ -4,7 +4,6 @@ import { ProjectsStatusChart } from '@/components/dashboard/ProjectsStatusChart'
 import { BudgetChart } from '@/components/dashboard/BudgetChart';
 import { CriticalProjectsTable } from '@/components/dashboard/CriticalProjectsTable';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
-import { SecondaryStats } from '@/components/dashboard/SecondaryStats';
 import { H1, Subtitle } from "@/components/ui/typography";
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { 
@@ -85,12 +84,6 @@ export function DashboardView() {
 					delay={300}
 				/>
 			</div>
-
-			{/* Estadísticas secundarias - SIN div contenedor con grid */}
-			<SecondaryStats 
-				projects={projects} 
-				projectsInExecution={kpiData.en_ejecucion}
-			/>
 
 			{/* Gráficas */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
