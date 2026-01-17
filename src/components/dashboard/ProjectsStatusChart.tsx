@@ -84,7 +84,7 @@ export function ProjectsStatusChart({ projects }: ProjectsStatusChartProps) {
 	/**
 	 * Custom tooltip component showing project count and percentage
 	 */
-	const CustomTooltip = ({ active, payload }: any) => {
+	const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ value: number; name: string; payload: { color: string; name: string } }> }) => {
 		if (active && payload && payload.length) {
 			const percentage = ((payload[0].value / total) * 100).toFixed(1);
 			return (
@@ -110,10 +110,11 @@ export function ProjectsStatusChart({ projects }: ProjectsStatusChartProps) {
 	/**
 	 * Custom legend component with percentage display
 	 */
-	const CustomLegend = ({ payload }: any) => {
+	const CustomLegend = ({ payload }: { payload?: Array<{ value: number; color: string; payload: { name: string } }> }) => {
+		if (!payload) return null;
 		return (
 			<div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs">
-				{payload.map((entry: any, index: number) => {
+				{payload.map((entry, index: number) => {
 					const percentage = ((entry.value / total) * 100).toFixed(0);
 					return (
 						<div 
@@ -142,7 +143,15 @@ export function ProjectsStatusChart({ projects }: ProjectsStatusChartProps) {
 	/**
 	 * Renders active segment with expanded outer radius
 	 */
-	const renderActiveShape = (props: any) => {
+	const renderActiveShape = (props: {
+		cx: number;
+		cy: number;
+		innerRadius: number;
+		outerRadius: number;
+		startAngle: number;
+		endAngle: number;
+		fill: string;
+	}) => {
 		const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
 		
 		return (

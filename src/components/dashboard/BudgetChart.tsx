@@ -121,7 +121,18 @@ export function BudgetChart({ projects }: Props) {
 	/**
 	 * Custom tooltip showing full project details
 	 */
-	const CustomTooltip = ({ active, payload }: any) => {
+	const CustomTooltip = ({ active, payload }: { 
+		active?: boolean; 
+		payload?: Array<{ 
+			payload: { 
+				fullName: string; 
+				presupuesto: number; 
+				avance: number; 
+				devengado: number; 
+				isOverBudget: boolean;
+			} 
+		}> 
+	}) => {
 		if (active && payload && payload.length) {
 			const d = payload[0].payload;
 			return (

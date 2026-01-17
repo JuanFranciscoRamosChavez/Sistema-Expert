@@ -20,7 +20,7 @@ interface Activity {
 	project: string;
 	action: string;
 	time: string;
-	icon: any;
+	icon: React.ComponentType<{ className?: string }>;
 	color: string;
 	initials: string;
 	type: 'alert' | 'completed' | 'normal';
