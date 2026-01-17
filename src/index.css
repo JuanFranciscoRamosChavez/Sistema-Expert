@@ -182,8 +182,63 @@
   /* Animaciones simples */
   .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
   .animate-slide-up { animation: slideUp 0.5s ease-out forwards; }
+  
+  /* Animación de pulso sutil para indicadores */
+  .animate-pulse-subtle {
+    animation: pulse-subtle 2s ease-in-out infinite;
+  }
+  
+  /* Scrollbar personalizado */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: 4px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 4px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
 }
 
 /* Definición técnica de las animaciones (Keyframes) */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse-subtle { 
+  0%, 100% { opacity: 1; } 
+  50% { opacity: 0.8; } 
+}
+
+/* ========================================================================
+   SECCIÓN 6: ESTILOS PARA BARRA DE PROGRESO
+   ======================================================================== */
+@layer components {
+  /* Animación para barra de progreso */
+  .progress-bar-animated {
+    transition: width 0.5s ease-out;
+  }
+  
+  /* Indicador de estado pulsante */
+  .status-indicator {
+    position: relative;
+  }
+  
+  .status-indicator::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: inherit;
+    animation: pulse-subtle 2s ease-in-out infinite;
+  }
+}
