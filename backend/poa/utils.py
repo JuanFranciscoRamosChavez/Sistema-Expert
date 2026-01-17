@@ -11,7 +11,7 @@ CATALOGO_ESCALAS = {
 	"muy alto": 5, "muy alta": 5,
 }
 
-def clean_money_vectorized(valor):
+def clean_money(valor):
 	"""
 	Limpia y estandariza montos financieros.
 	Entrada: 35999.76998888 -> Salida: 35999.77
@@ -30,7 +30,7 @@ def clean_money_vectorized(valor):
 	except:
 		return 0.0
 
-def clean_percentage_vectorized(valor):
+def clean_percentage(valor):
 	"""
 	Normaliza porcentajes a escala 0-100.
 	- Entrada "100%" o 100 -> Salida 100.0

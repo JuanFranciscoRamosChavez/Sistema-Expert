@@ -1,18 +1,42 @@
 from django.core.management.base import BaseCommand
 from poa.models import Obra
-from poa.utils import clean_money_vectorized, clean_percentage_vectorized, interpretar_escala_flexible, clean_beneficiarios_advanced
+from poa.utils import clean_money, clean_percentage, interpretar_escala_flexible, clean_beneficiarios_advanced
 import pandas as pd
 import os
 from datetime import datetime, timedelta
 
 class Command(BaseCommand):
-	help = 'Importa datos aplicando reglas de negocio avanzadas para beneficiarios'
+	help = 'Importa datos aplicando reglas de negocio avanzadas para beneficiarios. Soporta .xlsx y .csv'
 
 	def handle(self, *args, **kwargs):
-		file_path = os.path.join('data', 'datos.xlsx')
-		self.stdout.write("Leyendo Excel...")
+		# Intenta localizar el archivo de datos (Excel o CSV)
+		base_dir = 'data'
+		xlsx_path = os.path.join(base_dir, 'datos.xlsx')
+		csv_path = os.path.join(base_dir, 'datos.csv')
 		
-		df = pd.read_excel(file_path, header=None)
+		# Verificamos qué archivo existe (priorizando Excel si ambos existen)
+		if os.path.exists(xlsx_path):
+			file_path = xlsx_path
+			self.stdout.write(f"Leyendo Excel desde {file_path}...")
+			df = pd.read_excel(file_path, header=None)
+		elif os.path.exists(csv_path):
+			file_path = csv_path
+			self.stdout.write(f"Leyendo CSV desde {file_path}...")
+			# header=None para coincidir con la lógica original de saltar la fila 0 manualmente
+			df = pd.read_csv(file_path, header=None) 
+		else:
+			# Intento de fallback para nombres generados como "datos.xlsx - Sheet1.csv"
+			# Busca cualquier archivo csv en la carpeta data
+			files = [f for f in os.listdir(base_dir) if f.endswith('.csv')]
+			if files:
+				file_path = os.path.join(base_dir, files[0])
+				self.stdout.write(f"Archivo estándar no encontrado. Usando: {file_path}...")
+				df = pd.read_csv(file_path, header=None)
+			else:
+				self.stdout.write(self.style.ERROR("No se encontró 'datos.xlsx' ni 'datos.csv' en la carpeta data."))
+				return
+
+		# Ajuste para saltar encabezados dummy si es necesario (según código original)
 		df = df.iloc[1:]
 
 		obras_batch = []
@@ -22,9 +46,11 @@ class Command(BaseCommand):
 
 		def parse_date(val):
 			try:
-				if pd.isna(val): return None
+				if pd.isna(val) or val == '': return None
+				# Manejo de fecha serial de Excel (enteros/floats)
 				if isinstance(val, (int, float)):
 					return (datetime(1899, 12, 30) + timedelta(days=val)).date()
+				# Manejo de strings (ISO, etc.)
 				return pd.to_datetime(val).date()
 			except:
 				return None
@@ -37,18 +63,18 @@ class Command(BaseCommand):
 					programa=safe_str(row[1]),
 					area_responsable=safe_str(row[2]),
 					eje_institucional=safe_str(row[3]),
+					
+					# Presupuesto
 					tipo_recurso=safe_str(row[4]),
 					concentrado_programas=safe_str(row[5]),
 					capitulo_gasto=safe_str(row[6]),
-					
-					# Presupuesto
-					presupuesto_modificado=clean_money_vectorized(row[7]),
-					anteproyecto_total=clean_money_vectorized(row[8]),
-					meta_2025=clean_money_vectorized(row[9]),
-					meta_2026=clean_money_vectorized(row[10]),
+					presupuesto_modificado=clean_money(row[7]),
+					anteproyecto_total=clean_money(row[8]),
+					meta_2025=clean_money(row[9]),
+					meta_2026=clean_money(row[10]),
 					unidad_medida=safe_str(row[11]),
-					costo_unitario=clean_money_vectorized(row[12]),
-					proyecto_presupuesto=clean_money_vectorized(row[13]),
+					costo_unitario=clean_money(row[12]),
+					proyecto_presupuesto=clean_money(row[13]),
 					multianualidad=safe_str(row[14]),
 
 					# Categorización
@@ -67,7 +93,7 @@ class Command(BaseCommand):
 					recursos_disponibles=interpretar_escala_flexible(row[25]),
 					riesgo_nivel=interpretar_escala_flexible(row[26]),
 					dependencias_nivel=interpretar_escala_flexible(row[27]),
-					puntuacion_final_ponderada=clean_money_vectorized(row[28]),
+					puntuacion_final_ponderada=clean_money(row[28]),
 
 					# Semáforos
 					viabilidad_tecnica_semaforo=safe_str(row[29]),
@@ -81,7 +107,6 @@ class Command(BaseCommand):
 					ubicacion_especifica=safe_str(row[35]),
 					beneficiarios_directos=safe_str(row[36]),
 					beneficiarios_num=clean_beneficiarios_advanced(row[36]),
-					
 					poblacion_objetivo_num=safe_str(row[37]),
 
 					# Fechas
@@ -92,8 +117,8 @@ class Command(BaseCommand):
 					fecha_termino_real=parse_date(row[42]),
 
 					# Estatus y Textos
-					avance_fisico_pct=clean_percentage_vectorized(row[43]),
-					avance_financiero_pct=clean_percentage_vectorized(row[44]),
+					avance_fisico_pct=clean_percentage(row[43]),
+					avance_financiero_pct=clean_percentage(row[44]),
 					estatus_general=safe_str(row[45]),
 					permisos_requeridos=safe_str(row[46]),
 					estatus_permisos=safe_str(row[47]),
@@ -104,6 +129,8 @@ class Command(BaseCommand):
 					problemas_identificados=safe_str(row[52]),
 					acciones_correctivas=safe_str(row[53]),
 					ultima_actualizacion=parse_date(row[54]),
+					
+					# Narrativa
 					problema_resuelve=safe_str(row[55]),
 					solucion_ofrece=safe_str(row[56]),
 					beneficio_ciudadania=safe_str(row[57]),
