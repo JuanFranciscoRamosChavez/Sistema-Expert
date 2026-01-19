@@ -14,7 +14,11 @@ import {
   Scale,
   Gavel,
   Clock,
-  Briefcase
+  Briefcase,
+  User,
+  Building2,
+  ClipboardCheck,
+  ShieldAlert
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -45,30 +49,44 @@ export function RisksView() {
     );
   }
 
-  // --- LÓGICA DE FILTRADO PARA LA MATRIZ ---
+  // --- 1. LÓGICA DE FILTRADO PARA LA MATRIZ ---
   const matrixProjects = projects.filter(p => {
     const sem = p.semaphores;
     const reds = Object.values(sem).filter(s => s === 'ROJO').length;
     const yellows = Object.values(sem).filter(s => s === 'AMARILLO').length;
     const score = p.puntajePrioridad || 0;
 
-    // REGLA:
-    // 1. Puntuación > 3 (Alta/Muy Alta/Crítica) Y Viabilidad Media (2+ Amarillos)
-    // 2. O Automático si tiene al menos 1 Rojo (Viabilidad Baja)
+    // Regla: Prioridad Alta+ con Viabilidad Media (2+ Amarillos) O Viabilidad Baja (1+ Rojo)
     const isHighPriorityRisk = (score > 3 && yellows >= 2);
     const isCriticalRisk = (reds >= 1);
 
     return isHighPriorityRisk || isCriticalRisk;
   }).sort((a, b) => {
-    // Ordenar: Primero Viabilidad Baja (Rojos), luego Media (Amarillos)
     const vOrder = { 'baja': 0, 'media': 1, 'alta': 2 };
     return vOrder[a.viabilidad] - vOrder[b.viabilidad];
   });
 
-  // Catálogo de riesgos (texto plano)
-  const allRisks = projects.flatMap(p => 
-    p.riesgos.map(risk => ({ project: p.nombre, risk, projectId: p.id }))
+  // --- 2. CATÁLOGO DE RIESGOS (Filtrado por matriz) ---
+  const allRisks = matrixProjects.flatMap(p => 
+    p.riesgos.map(risk => ({ 
+      project: p.nombre, 
+      risk, 
+      projectId: p.id,
+      responsable: p.responsable,
+      direccion: p.direccion 
+    }))
   );
+
+  // --- 3. ACCIONES DE MITIGACIÓN (Proyectos críticos con acciones definidas) ---
+  // Filtramos proyectos que:
+  // a) Tienen texto en 'accionesCorrectivas'
+  // b) Están en la matriz de riesgo (viabilidad baja/media-crítica) para ser consistentes
+  //    O tienen viabilidad 'baja' explícitamente como solicitaste.
+  const mitigationProjects = projects.filter(p => {
+    const hasAction = p.accionesCorrectivas && p.accionesCorrectivas.trim().length > 0;
+    const isRiskContext = p.viabilidad === 'baja' || matrixProjects.some(mp => mp.id === p.id);
+    return hasAction && isRiskContext;
+  });
 
   // Categorías para las tarjetas superiores
   const riskCategories = [
@@ -109,7 +127,6 @@ export function RisksView() {
     },
   ];
 
-  // Helper para renderizar iconos de semáforo
   const renderSemaphoreIcon = (label: string, status: string, Icon: any) => {
     if (status !== 'ROJO' && status !== 'AMARILLO') return null;
     return (
@@ -206,16 +223,13 @@ export function RisksView() {
                     const budgetExecution = project.presupuesto > 0 
                       ? (project.ejecutado / project.presupuesto) * 100 
                       : 0;
-                    
                     const sem = project.semaphores;
-
                     return (
                       <tr 
                         key={project.id} 
                         className="border-b border-border/50 hover:bg-muted/30 transition-colors animate-fade-in"
                         style={{ animationDelay: `${200 + index * 50}ms` }}
                       >
-                        {/* 1. Proyecto */}
                         <td className="py-4 px-2">
                           <div>
                             <p className="font-medium truncate max-w-[280px]" title={project.nombre}>
@@ -224,15 +238,11 @@ export function RisksView() {
                             <p className="text-xs text-muted-foreground font-mono mt-0.5">{project.id}</p>
                           </div>
                         </td>
-
-                        {/* 2. Estado */}
                         <td className="py-4 px-2">
                           <Badge variant={project.status as any} className="whitespace-nowrap">
                             {getStatusLabel(project.status)}
                           </Badge>
                         </td>
-
-                        {/* 3. Viabilidad */}
                         <td className="py-4 px-2">
                           <span className={cn(
                             "text-xs font-bold px-2 py-1 rounded-full border",
@@ -243,8 +253,6 @@ export function RisksView() {
                             {project.viabilidad.toUpperCase()}
                           </span>
                         </td>
-
-                        {/* 4. Avance Físico */}
                         <td className="py-4 px-2 min-w-[120px]">
                           <div className="flex flex-col gap-1">
                             <div className="flex justify-between text-xs">
@@ -254,8 +262,6 @@ export function RisksView() {
                             <Progress value={project.avance} className="h-1.5" />
                           </div>
                         </td>
-
-                        {/* 5. Ejecución Presupuestal */}
                         <td className="py-4 px-2 min-w-[120px]">
                           <div className="flex flex-col gap-1">
                             <div className="flex justify-between text-xs">
@@ -269,8 +275,6 @@ export function RisksView() {
                             <p className="text-[10px] text-muted-foreground text-right">{formatCurrency(project.ejecutado)}</p>
                           </div>
                         </td>
-
-                        {/* 6. Riesgos (Iconos de Semáforos) */}
                         <td className="py-4 px-2">
                           <div className="flex items-center gap-1 flex-wrap">
                             {renderSemaphoreIcon('Técnica', sem.tecnica, Activity)}
@@ -278,8 +282,6 @@ export function RisksView() {
                             {renderSemaphoreIcon('Jurídica', sem.juridica, Gavel)}
                             {renderSemaphoreIcon('Temporal', sem.temporal, Clock)}
                             {renderSemaphoreIcon('Administrativa', sem.administrativa, Briefcase)}
-                            
-                            {/* Mensaje si no hay semáforos rojos/amarillos visibles pero cayó aquí por otra razón */}
                             {Object.values(sem).every(s => s === 'VERDE' || s === 'GRIS') && (
                               <span className="text-xs text-muted-foreground italic">Sin alertas específicas</span>
                             )}
@@ -302,22 +304,95 @@ export function RisksView() {
             <AlertTriangle className="h-5 w-5 text-warning" />
             Catálogo de Riesgos Identificados (Texto)
           </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Detalle de obstáculos registrados para los proyectos en matriz de riesgo.
+          </p>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 gap-4">
             {allRisks.length === 0 ? (
-               <p className="text-muted-foreground col-span-2 text-center py-4">No se han registrado descripciones de riesgos.</p>
+               <p className="text-muted-foreground col-span-2 text-center py-4">No se han registrado descripciones de riesgos para los proyectos críticos.</p>
             ) : (
               allRisks.map((item, index) => (
                 <div 
                   key={`${item.projectId}-${index}`} 
-                  className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg animate-fade-in"
+                  className="flex flex-col gap-2 p-4 bg-muted/30 border border-border/50 rounded-lg animate-fade-in hover:bg-muted/50 transition-colors"
                   style={{ animationDelay: `${300 + index * 30}ms` }}
                 >
-                  <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium">{item.risk}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{item.project}</p>
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-1" />
+                    <p className="text-sm font-medium text-foreground leading-relaxed">{item.risk}</p>
+                  </div>
+                  <div className="pl-6 space-y-1.5 mt-1">
+                     <p className="text-xs font-semibold text-primary/80">{item.project}</p>
+                     <div className="flex items-center justify-between gap-4 pt-2 border-t border-border/50">
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <User className="h-3 w-3" />
+                          <span className="truncate max-w-[120px]" title={item.responsable}>{item.responsable}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <Building2 className="h-3 w-3" />
+                          <span className="truncate max-w-[120px]" title={item.direccion}>{item.direccion}</span>
+                        </div>
+                     </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Mitigation Actions - SECCIÓN ACTUALIZADA */}
+      <Card className="animate-slide-up" style={{ animationDelay: '300ms' }}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ClipboardCheck className="h-5 w-5 text-success" />
+            Acciones de Mitigación Sugeridas
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Acciones correctivas requeridas para proyectos con Viabilidad Baja o en Riesgo Crítico.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {mitigationProjects.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">
+                No hay acciones correctivas registradas para los proyectos en riesgo actualmente.
+              </p>
+            ) : (
+              mitigationProjects.map((project, index) => (
+                <div 
+                  key={project.id}
+                  className={cn(
+                    "flex flex-col sm:flex-row items-start gap-4 p-4 rounded-lg border animate-fade-in",
+                    project.viabilidad === 'baja' 
+                      ? "bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-900/30" 
+                      : "bg-orange-50 border-orange-200 dark:bg-orange-900/10 dark:border-orange-900/30"
+                  )}
+                  style={{ animationDelay: `${400 + index * 50}ms` }}
+                >
+                  <div className={cn(
+                    "p-2 rounded-full shrink-0 mt-1",
+                    project.viabilidad === 'baja' ? "bg-red-100 text-red-600" : "bg-orange-100 text-orange-600"
+                  )}>
+                    {project.viabilidad === 'baja' ? <ShieldAlert className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
+                  </div>
+                  
+                  <div className="flex-1 space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <p className="font-semibold text-foreground">{project.nombre}</p>
+                      <Badge variant={project.status as any} className="w-fit">
+                        Viabilidad {project.viabilidad.toUpperCase()}
+                      </Badge>
+                    </div>
+                    
+                    <div className="bg-background/60 p-3 rounded-md border border-border/50 text-sm">
+                      <p className="font-medium text-muted-foreground mb-1 text-xs uppercase tracking-wider">Acción Requerida:</p>
+                      <p className="text-foreground leading-relaxed">
+                        {project.accionesCorrectivas}
+                      </p>
+                    </div>
                   </div>
                 </div>
               ))

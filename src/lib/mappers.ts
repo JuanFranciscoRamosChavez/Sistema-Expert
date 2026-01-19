@@ -123,6 +123,7 @@ export function mapApiToUiProject(apiProject: APIProject): Project {
     zona: 'multiple',
     objetivos: [apiProject.problema_resuelve].filter(Boolean) as string[],
     riesgos: listaRiesgos,
+    accionesCorrectivas: apiProject.acciones_correctivas,
     avance: avanceFisico, 
     indicadores: []
   };

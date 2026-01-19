@@ -30,6 +30,7 @@ export interface Project {
   zona: string;
   objetivos: string[];
   riesgos: string[];
+  accionesCorrectivas?: string;
   avance: number;
   indicadores: {
     nombre: string;
