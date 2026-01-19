@@ -1,76 +1,167 @@
-import { mockProjects, getStatusLabel, getPriorityLabel, formatCurrency } from '@/lib/mockData';
+import { useEffect, useState } from 'react';
+import { Project, getStatusLabel, formatCurrency } from '@/lib/mockData';
+import { fetchProjects } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertTriangle, TrendingDown, Clock, DollarSign, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { 
+  AlertTriangle, 
+  AlertCircle, 
+  TrendingUp, 
+  Activity, 
+  CheckCircle2, 
+  Loader2,
+  Scale,
+  Gavel,
+  Clock,
+  Briefcase
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function RisksView() {
-  const riskyProjects = mockProjects.filter(p => 
-    p.status === 'en_riesgo' || p.status === 'retrasado' || p.viabilidad === 'baja'
-  );
-  
-  const allRisks = mockProjects.flatMap(p => 
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const data = await fetchProjects();
+        setProjects(data);
+      } catch (error) {
+        console.error("Error cargando proyectos:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // --- LÓGICA DE FILTRADO PARA LA MATRIZ ---
+  const matrixProjects = projects.filter(p => {
+    const sem = p.semaphores;
+    const reds = Object.values(sem).filter(s => s === 'ROJO').length;
+    const yellows = Object.values(sem).filter(s => s === 'AMARILLO').length;
+    const score = p.puntajePrioridad || 0;
+
+    // REGLA:
+    // 1. Puntuación > 3 (Alta/Muy Alta/Crítica) Y Viabilidad Media (2+ Amarillos)
+    // 2. O Automático si tiene al menos 1 Rojo (Viabilidad Baja)
+    const isHighPriorityRisk = (score > 3 && yellows >= 2);
+    const isCriticalRisk = (reds >= 1);
+
+    return isHighPriorityRisk || isCriticalRisk;
+  }).sort((a, b) => {
+    // Ordenar: Primero Viabilidad Baja (Rojos), luego Media (Amarillos)
+    const vOrder = { 'baja': 0, 'media': 1, 'alta': 2 };
+    return vOrder[a.viabilidad] - vOrder[b.viabilidad];
+  });
+
+  // Catálogo de riesgos (texto plano)
+  const allRisks = projects.flatMap(p => 
     p.riesgos.map(risk => ({ project: p.nombre, risk, projectId: p.id }))
   );
 
+  // Categorías para las tarjetas superiores
   const riskCategories = [
     { 
-      name: 'Proyectos en Riesgo', 
-      count: mockProjects.filter(p => p.status === 'en_riesgo').length,
+      name: 'Prioridad Crítica', 
+      description: 'Puntuación 4.5 - 5.0',
+      count: projects.filter(p => p.prioridad === 'critica').length,
       icon: AlertTriangle,
-      color: 'text-danger bg-danger/10'
+      color: 'text-red-600 bg-red-100 dark:bg-red-900/20'
     },
     { 
-      name: 'Proyectos Retrasados', 
-      count: mockProjects.filter(p => p.status === 'retrasado').length,
-      icon: Clock,
-      color: 'text-warning bg-warning/10'
+      name: 'Prioridad Muy Alta', 
+      description: 'Puntuación 3.5 - 4.4',
+      count: projects.filter(p => p.prioridad === 'muy_alta').length,
+      icon: AlertCircle,
+      color: 'text-orange-600 bg-orange-100 dark:bg-orange-900/20'
     },
     { 
-      name: 'Viabilidad Baja', 
-      count: mockProjects.filter(p => p.viabilidad === 'baja').length,
-      icon: TrendingDown,
-      color: 'text-danger bg-danger/10'
+      name: 'Prioridad Alta', 
+      description: 'Puntuación 2.5 - 3.4',
+      count: projects.filter(p => p.prioridad === 'alta').length,
+      icon: TrendingUp,
+      color: 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20'
     },
     { 
-      name: 'Sobrepresupuesto', 
-      count: mockProjects.filter(p => p.ejecutado > p.presupuesto * 0.9 && p.avance < 90).length,
-      icon: DollarSign,
-      color: 'text-warning bg-warning/10'
+      name: 'Prioridad Media', 
+      description: 'Puntuación 1.5 - 2.4',
+      count: projects.filter(p => p.prioridad === 'media').length,
+      icon: Activity,
+      color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/20'
+    },
+    { 
+      name: 'Prioridad Baja', 
+      description: 'Puntuación 1.0 - 1.4',
+      count: projects.filter(p => p.prioridad === 'baja').length,
+      icon: CheckCircle2,
+      color: 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/20'
     },
   ];
+
+  // Helper para renderizar iconos de semáforo
+  const renderSemaphoreIcon = (label: string, status: string, Icon: any) => {
+    if (status !== 'ROJO' && status !== 'AMARILLO') return null;
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger>
+            <div className={cn(
+              "p-1.5 rounded-full",
+              status === 'ROJO' ? "bg-red-100 text-red-600" : "bg-yellow-100 text-yellow-600"
+            )}>
+              <Icon className="h-3 w-3" />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="text-xs font-semibold">{label}: {status}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="animate-fade-in">
         <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
-          Gestión de Riesgos
+          Gestión de Riesgos y Priorización
         </h1>
         <p className="text-muted-foreground mt-1">
-          Identificación y seguimiento de riesgos en proyectos
+          Seguimiento basado en la Matriz de Priorización Ponderada y Viabilidad
         </p>
       </div>
 
-      {/* Risk Categories */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Risk Categories (Tarjetas Superiores) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {riskCategories.map((cat, index) => {
           const Icon = cat.icon;
           return (
             <Card 
               key={cat.name} 
-              className="animate-slide-up"
+              className="animate-slide-up hover:shadow-md transition-shadow"
               style={{ animationDelay: `${index * 50}ms` }}
             >
-              <CardContent className="pt-6">
+              <CardContent className="pt-6 px-4">
                 <div className="flex items-center gap-3">
-                  <div className={cn("p-3 rounded-lg", cat.color)}>
+                  <div className={cn("p-2 rounded-lg shrink-0", cat.color)}>
                     <Icon className="h-5 w-5" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-2xl font-display font-bold">{cat.count}</p>
-                    <p className="text-xs text-muted-foreground">{cat.name}</p>
+                    <p className="text-sm font-medium leading-none truncate" title={cat.name}>{cat.name}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">{cat.description}</p>
                   </div>
                 </div>
               </CardContent>
@@ -79,76 +170,125 @@ export function RisksView() {
         })}
       </div>
 
-      {/* Risk Matrix */}
+      {/* Matrix Table */}
       <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-danger" />
             Matriz de Riesgos por Proyecto
           </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Proyectos con Viabilidad Baja (1+ Rojos) o Prioridad Alta con Viabilidad Media (2+ Amarillos).
+          </p>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Proyecto</th>
+                  <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground w-[30%]">Proyecto</th>
                   <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Estado</th>
                   <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Viabilidad</th>
                   <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Avance</th>
                   <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Ejecución Presup.</th>
-                  <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Riesgos</th>
+                  <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Riesgos (Semáforos)</th>
                 </tr>
               </thead>
               <tbody>
-                {riskyProjects.map((project, index) => {
-                  const budgetExecution = (project.ejecutado / project.presupuesto) * 100;
-                  return (
-                    <tr 
-                      key={project.id} 
-                      className="border-b border-border/50 hover:bg-muted/30 transition-colors animate-fade-in"
-                      style={{ animationDelay: `${200 + index * 50}ms` }}
-                    >
-                      <td className="py-4 px-2">
-                        <div>
-                          <p className="font-medium">{project.nombre}</p>
-                          <p className="text-xs text-muted-foreground">{project.direccion}</p>
-                        </div>
-                      </td>
-                      <td className="py-4 px-2">
-                        <Badge variant={project.status as any}>{getStatusLabel(project.status)}</Badge>
-                      </td>
-                      <td className="py-4 px-2">
-                        <span className={cn(
-                          "text-xs font-medium px-2 py-1 rounded-full",
-                          project.viabilidad === 'alta' && "bg-success/20 text-success",
-                          project.viabilidad === 'media' && "bg-warning/20 text-warning",
-                          project.viabilidad === 'baja' && "bg-danger/20 text-danger",
-                        )}>
-                          {project.viabilidad.charAt(0).toUpperCase() + project.viabilidad.slice(1)}
-                        </span>
-                      </td>
-                      <td className="py-4 px-2">
-                        <div className="flex items-center gap-2">
-                          <Progress value={project.avance} className="w-16 h-2" />
-                          <span className="text-sm">{project.avance}%</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-2">
-                        <div className="flex items-center gap-2">
-                          <Progress 
-                            value={budgetExecution} 
-                            className={cn("w-16 h-2", budgetExecution > 90 && project.avance < 90 && "[&>div]:bg-danger")} 
-                          />
-                          <span className="text-sm">{budgetExecution.toFixed(0)}%</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-2">
-                        <span className="text-sm text-muted-foreground">{project.riesgos.length} identificados</span>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {matrixProjects.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                      No hay proyectos que cumplan los criterios de riesgo actuales.
+                    </td>
+                  </tr>
+                ) : (
+                  matrixProjects.map((project, index) => {
+                    const budgetExecution = project.presupuesto > 0 
+                      ? (project.ejecutado / project.presupuesto) * 100 
+                      : 0;
+                    
+                    const sem = project.semaphores;
+
+                    return (
+                      <tr 
+                        key={project.id} 
+                        className="border-b border-border/50 hover:bg-muted/30 transition-colors animate-fade-in"
+                        style={{ animationDelay: `${200 + index * 50}ms` }}
+                      >
+                        {/* 1. Proyecto */}
+                        <td className="py-4 px-2">
+                          <div>
+                            <p className="font-medium truncate max-w-[280px]" title={project.nombre}>
+                              {project.nombre}
+                            </p>
+                            <p className="text-xs text-muted-foreground font-mono mt-0.5">{project.id}</p>
+                          </div>
+                        </td>
+
+                        {/* 2. Estado */}
+                        <td className="py-4 px-2">
+                          <Badge variant={project.status as any} className="whitespace-nowrap">
+                            {getStatusLabel(project.status)}
+                          </Badge>
+                        </td>
+
+                        {/* 3. Viabilidad */}
+                        <td className="py-4 px-2">
+                          <span className={cn(
+                            "text-xs font-bold px-2 py-1 rounded-full border",
+                            project.viabilidad === 'alta' && "bg-green-100 text-green-700 border-green-200",
+                            project.viabilidad === 'media' && "bg-yellow-100 text-yellow-700 border-yellow-200",
+                            project.viabilidad === 'baja' && "bg-red-100 text-red-700 border-red-200",
+                          )}>
+                            {project.viabilidad.toUpperCase()}
+                          </span>
+                        </td>
+
+                        {/* 4. Avance Físico */}
+                        <td className="py-4 px-2 min-w-[120px]">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Físico</span>
+                              <span className="font-medium">{project.avance.toFixed(0)}%</span>
+                            </div>
+                            <Progress value={project.avance} className="h-1.5" />
+                          </div>
+                        </td>
+
+                        {/* 5. Ejecución Presupuestal */}
+                        <td className="py-4 px-2 min-w-[120px]">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Financiero</span>
+                              <span className="font-medium">{budgetExecution.toFixed(0)}%</span>
+                            </div>
+                            <Progress 
+                              value={budgetExecution} 
+                              className={cn("h-1.5", budgetExecution > 90 && project.avance < 80 && "bg-red-100 [&>div]:bg-red-500")} 
+                            />
+                            <p className="text-[10px] text-muted-foreground text-right">{formatCurrency(project.ejecutado)}</p>
+                          </div>
+                        </td>
+
+                        {/* 6. Riesgos (Iconos de Semáforos) */}
+                        <td className="py-4 px-2">
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {renderSemaphoreIcon('Técnica', sem.tecnica, Activity)}
+                            {renderSemaphoreIcon('Presupuestal', sem.presupuestal, Scale)}
+                            {renderSemaphoreIcon('Jurídica', sem.juridica, Gavel)}
+                            {renderSemaphoreIcon('Temporal', sem.temporal, Clock)}
+                            {renderSemaphoreIcon('Administrativa', sem.administrativa, Briefcase)}
+                            
+                            {/* Mensaje si no hay semáforos rojos/amarillos visibles pero cayó aquí por otra razón */}
+                            {Object.values(sem).every(s => s === 'VERDE' || s === 'GRIS') && (
+                              <span className="text-xs text-muted-foreground italic">Sin alertas específicas</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -160,58 +300,28 @@ export function RisksView() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-warning" />
-            Catálogo de Riesgos Identificados
+            Catálogo de Riesgos Identificados (Texto)
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 gap-4">
-            {allRisks.map((item, index) => (
-              <div 
-                key={`${item.projectId}-${index}`} 
-                className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg animate-fade-in"
-                style={{ animationDelay: `${300 + index * 30}ms` }}
-              >
-                <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm">{item.risk}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{item.project}</p>
+            {allRisks.length === 0 ? (
+               <p className="text-muted-foreground col-span-2 text-center py-4">No se han registrado descripciones de riesgos.</p>
+            ) : (
+              allRisks.map((item, index) => (
+                <div 
+                  key={`${item.projectId}-${index}`} 
+                  className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg animate-fade-in"
+                  style={{ animationDelay: `${300 + index * 30}ms` }}
+                >
+                  <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium">{item.risk}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{item.project}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Mitigation Actions */}
-      <Card className="animate-slide-up" style={{ animationDelay: '300ms' }}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-success" />
-            Acciones de Mitigación Sugeridas
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-start gap-3 p-4 bg-danger/5 border border-danger/20 rounded-lg">
-              <AlertTriangle className="h-5 w-5 text-danger shrink-0" />
-              <div>
-                <p className="font-medium">Parque Ecológico Metropolitano</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Recomendación: Reunión urgente con stakeholders para resolver conflictos de uso de suelo. 
-                  Considerar reasignación presupuestal o reducción de alcance.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 p-4 bg-warning/5 border border-warning/20 rounded-lg">
-              <Clock className="h-5 w-5 text-warning shrink-0" />
-              <div>
-                <p className="font-medium">Programa de Pavimentación Integral</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Recomendación: Acelerar procesos de licitación. Programar trabajos intensivos en temporada seca.
-                  Establecer comunicación proactiva con vecinos afectados.
-                </p>
-              </div>
-            </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>

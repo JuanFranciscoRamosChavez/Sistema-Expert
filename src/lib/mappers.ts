@@ -1,5 +1,5 @@
 import { APIProject } from '@/types';
-import { Project, ProjectStatus, Priority, Viability } from '@/lib/mockData';
+import { Project, ProjectStatus, Priority, Viability, ViabilitySemaphores } from '@/lib/mockData';
 
 export function mapApiToUiProject(apiProject: APIProject): Project {
   // 1. OBTENER VALORES DE LOS 7 CRITERIOS (Bloque 4)
@@ -31,6 +31,35 @@ export function mapApiToUiProject(apiProject: APIProject): Project {
 	} else {
 		prioridad = 'baja'; // 1.0 - 1.4
 	}
+
+  // LÓGICA DE VIABILIDAD Y SEMÁFOROS
+  // Helper para limpiar valores de semáforos
+  const cleanSem = (val?: string): 'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS' => {
+    const v = (val || '').toUpperCase();
+    if (['ROJO', 'AMARILLO', 'VERDE'].includes(v)) return v as any;
+    return 'GRIS'; // Si no hay dato o es inválido, asumimos neutro/gris para no alterar conteo
+  };
+
+  const semaphores: ViabilitySemaphores = {
+    tecnica: cleanSem(apiProject.viabilidad_tecnica_semaforo),
+    presupuestal: cleanSem(apiProject.viabilidad_presupuestal_semaforo),
+    juridica: cleanSem(apiProject.viabilidad_juridica_semaforo),
+    temporal: cleanSem(apiProject.viabilidad_temporal_semaforo),
+    administrativa: cleanSem(apiProject.viabilidad_administrativa_semaforo),
+  };
+
+  // Conteo de alertas
+  const reds = Object.values(semaphores).filter(s => s === 'ROJO').length;
+  const yellows = Object.values(semaphores).filter(s => s === 'AMARILLO').length;
+
+  let viabilidad: Viability = 'alta'; // Default: 5 Verdes (o < 2 amarillos y 0 rojos)
+  
+  if (reds >= 1) {
+    viabilidad = 'baja'; // 1 Rojo -> Viabilidad Baja
+  } else if (yellows >= 2) {
+    viabilidad = 'media'; // 2+ Amarillos -> Viabilidad Media
+  }
+  // Si no cae en los anteriores, se mantiene 'alta'
 
   // Variables auxiliares para código más limpio
   const avanceFisico = apiProject.avance_fisico_pct || 0;
@@ -67,10 +96,6 @@ export function mapApiToUiProject(apiProject: APIProject): Project {
     status = 'planificado';
   }
 
-  let viabilidad: Viability = 'media';
-	if (c4 >= 4) viabilidad = 'alta';      // 4-5 Alta
-	else if (c4 <= 2) viabilidad = 'baja'; // 1-2 Baja
-	// 3 es Media
 
 	// 6. RIESGOS (Texto)
 	const listaRiesgos = apiProject.problemas_identificados 
@@ -88,6 +113,7 @@ export function mapApiToUiProject(apiProject: APIProject): Project {
     status, 
     prioridad,
     viabilidad,
+    semaphores,
     riesgo: c6,
     puntajePrioridad: Number(puntajeFinal.toFixed(2)), 
     fechaInicio: apiProject.fecha_inicio_prog || new Date().toISOString(),

@@ -2,6 +2,15 @@ export type ProjectStatus = 'en_ejecucion' | 'planificado' | 'completado' | 'ret
 export type Priority = 'baja' | 'media' | 'alta' | 'muy_alta' | 'critica';
 export type Viability = 'alta' | 'media' | 'baja';
 
+// Nueva interfaz para los semáforos individuales
+export interface ViabilitySemaphores {
+  tecnica: 'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS';
+  presupuestal: 'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS';
+  juridica: 'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS';
+  temporal: 'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS';
+  administrativa: 'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS';
+}
+
 export interface Project {
   id: string;
   nombre: string;
@@ -13,6 +22,7 @@ export interface Project {
   status: ProjectStatus;
   prioridad: Priority;
   viabilidad: Viability;
+  semaphores: ViabilitySemaphores;
   fechaInicio: string;
   fechaFin: string;
   beneficiarios: number;
