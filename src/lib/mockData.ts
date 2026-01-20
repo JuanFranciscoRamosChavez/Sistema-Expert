@@ -100,3 +100,35 @@ export const formatNumber = (num: number): string => {
 };
 
 export const mockProjects: Project[] = [];
+
+// ...existing code...
+
+export const zonas = [
+  {
+    id: 'norte' as const,
+    nombre: "Zona Norte",
+    poblacion: 150000
+  },
+  {
+    id: 'sur' as const,
+    nombre: "Zona Sur",
+    poblacion: 180000
+  },
+  {
+    id: 'centro' as const,
+    nombre: "Zona Centro",
+    poblacion: 200000
+  },
+  {
+    id: 'oriente' as const,
+    nombre: "Zona Oriente",
+    poblacion: 160000
+  },
+  {
+    id: 'poniente' as const,
+    nombre: "Zona Poniente",
+    poblacion: 170000
+  }
+];
+
+// ...existing code...

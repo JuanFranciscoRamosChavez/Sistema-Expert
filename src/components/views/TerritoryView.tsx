@@ -27,15 +27,15 @@ export function TerritoryView() {
   }, {} as Record<string, { count: number; budget: number; beneficiaries: number }>);
 
   const pieData = Object.entries(projectsByZone).map(([zone, data]) => ({
-    name: zonas.find(z => z.id === zone)?.nombre || zone.charAt(0).toUpperCase() + zone.slice(1),
+    name: zonas.find(z => String(z.id) === zone)?.nombre || zone.charAt(0).toUpperCase() + zone.slice(1),
     value: data.budget,
     zone,
   }));
 
   const barData = zonas.map(zona => ({
     name: zona.nombre.replace('Zona ', ''),
-    proyectos: projectsByZone[zona.id]?.count || 0,
-    beneficiarios: (projectsByZone[zona.id]?.beneficiaries || 0) / 1000,
+    proyectos: projectsByZone[String(zona.id)]?.count || 0,
+    beneficiarios: (projectsByZone[String(zona.id)]?.beneficiaries || 0) / 1000,
   }));
 
   return (
@@ -53,7 +53,7 @@ export function TerritoryView() {
       {/* Zone Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {zonas.map((zona, index) => {
-          const zoneData = projectsByZone[zona.id] || { count: 0, budget: 0, beneficiaries: 0 };
+          const zoneData = projectsByZone[String(zona.id)] || { count: 0, budget: 0, beneficiaries: 0 };
           return (
             <Card 
               key={zona.id} 
@@ -214,7 +214,7 @@ export function TerritoryView() {
         <CardContent>
           <div className="space-y-4">
             {zonas.map((zona, index) => {
-              const zoneData = projectsByZone[zona.id] || { count: 0, budget: 0, beneficiaries: 0 };
+              const zoneData = projectsByZone[String(zona.id)] || { count: 0, budget: 0, beneficiaries: 0 };
               const investmentPerCapita = zoneData.budget / zona.poblacion;
               const avgInvestment = mockProjects.reduce((sum, p) => sum + p.presupuesto, 0) / mockProjects.reduce((sum, p) => sum + p.beneficiarios, 0);
               const equityScore = (investmentPerCapita / avgInvestment) * 100;
