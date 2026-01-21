@@ -105,6 +105,7 @@ export interface Project {
 	fechaFin: string;
 	ubicacion: string;
 	zona: string;
+	alcanceTerritorial?: string; // Del Bloque 3 - Categorización
 	beneficiarios: number;
 	prioridad: string;    // Derivado de 'urgencia_num'
 	riesgo: number;       // Mapeado directo de 'riesgo_nivel'

@@ -26,8 +26,8 @@ const Index = () => {
         return <RisksView />;
        case 'territory':
          return <TerritoryView />;
-      // case 'timeline':
-      //   return <TimelineView />;
+       case 'timeline':
+         return <TimelineView />;
       // case 'transparency':
       //   return <TransparencyView />;
       // case 'reports':

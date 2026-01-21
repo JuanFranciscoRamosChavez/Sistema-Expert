@@ -102,6 +102,12 @@ export function mapApiToUiProject(apiProject: APIProject): Project {
 		? apiProject.problemas_identificados.split(/[|;]+/).map(s => s.trim()).filter(Boolean)
 		: [];
 
+    // Concatenamos las alcaldías para que el detector de zonas funcione con datos reales
+  const ubicacionCompleta = [
+      apiProject.alcaldias, 
+      apiProject.ubicacion_especifica
+  ].filter(Boolean).join(' - ');
+
   return {
     id: apiProject.id.toString(),
     nombre: apiProject.programa || 'Sin Nombre',
@@ -119,7 +125,8 @@ export function mapApiToUiProject(apiProject: APIProject): Project {
     fechaInicio: apiProject.fecha_inicio_prog || new Date().toISOString(),
     fechaFin: apiProject.fecha_termino_prog || new Date().toISOString(),
     beneficiarios: apiProject.beneficiarios_num || 0,
-    ubicacion: apiProject.ubicacion_especifica || 'Múltiples',
+    ubicacion: ubicacionCompleta || 'No especificada',
+    alcanceTerritorial: apiProject.alcance_territorial, 
     zona: 'multiple',
     objetivos: [apiProject.problema_resuelve].filter(Boolean) as string[],
     riesgos: listaRiesgos,

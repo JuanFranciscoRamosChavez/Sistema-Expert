@@ -27,6 +27,7 @@ export interface Project {
   fechaFin: string;
   beneficiarios: number;
   ubicacion: string;
+  alcanceTerritorial?: string; // Del Bloque 3 - Categorización
   zona: string;
   objetivos: string[];
   riesgos: string[];

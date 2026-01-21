@@ -240,35 +240,39 @@ export function RisksView() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in pb-8 px-3 sm:px-4 md:px-6">
+    <div className="space-y-4 sm:space-y-5 md:space-y-6 animate-fade-in pb-6 sm:pb-8 px-2 sm:px-4 md:px-6">
       
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="space-y-1">
-          <H1 className="text-2xl md:text-3xl">Gestión de Riesgos</H1>
-          <Subtitle className="text-sm md:text-base text-muted-foreground">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+        <div className="space-y-1 sm:space-y-2">
+          <H1>Gestión de Riesgos</H1>
+          <Subtitle className="hidden sm:block">
             Matriz de Priorización Ponderada y Viabilidad Integral.
           </Subtitle>
+          <Subtitle className="block sm:hidden text-xs">
+            Matriz de Priorización y Viabilidad.
+          </Subtitle>
         </div>
-        <Button variant="outline" size="sm" onClick={refresh} className="gap-2 shrink-0">
-          <RefreshCw className="h-4 w-4" /> Actualizar
+        <Button variant="outline" size="sm" onClick={refresh} className="gap-2 shrink-0 h-9">
+          <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> 
+          <span className="hidden sm:inline">Actualizar</span>
         </Button>
       </div>
 
       {/* TARJETAS DE CATEGORÍA */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
         {categories.map((cat, index) => {
           const Icon = cat.icon;
           return (
             <Card key={cat.name} className="hover:shadow-sm transition-all duration-300 border-border/60" style={{ borderTop: `3px solid ${cat.color}` }}>
-              <CardContent className="p-4 md:p-5">
-                <div className="flex items-center gap-3">
-                  <div className={cn("p-2.5 rounded-lg shrink-0 shadow-sm", cat.bgColor)}>
-                    <Icon className="h-5 w-5 md:h-6 md:w-6" style={{ color: cat.color }} />
+              <CardContent className="p-3 sm:p-4 md:p-5">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className={cn("p-2 sm:p-2.5 rounded-lg shrink-0 shadow-sm", cat.bgColor)}>
+                    <Icon className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" style={{ color: cat.color }} />
                   </div>
                   <div className="min-w-0">
-                    <H1 className="text-2xl md:text-3xl font-display mb-0 leading-none">{cat.count}</H1>
-                    <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mt-1 truncate">{cat.name}</p>
+                    <H1 className="text-xl sm:text-2xl md:text-3xl font-display mb-0 leading-none">{cat.count}</H1>
+                    <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wide text-muted-foreground mt-0.5 sm:mt-1 truncate">{cat.name}</p>
                   </div>
                 </div>
               </CardContent>
@@ -279,21 +283,22 @@ export function RisksView() {
 
       {/* MATRIZ DE RIESGOS (Adaptable) */}
       <Card className="shadow-sm border-border">
-        <CardHeader className="pb-3 md:pb-4 border-b border-border/40">
-          <CardTitle className="flex items-center gap-2 text-lg md:text-xl font-display">
-            <AlertCircle className="h-5 w-5 text-destructive" />
-            Matriz de Riesgos por Proyecto
+        <CardHeader className="p-3 sm:p-4 md:p-6 pb-3 md:pb-4 border-b border-border/40">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl font-display">
+            <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />
+            <span className="hidden sm:inline">Matriz de Riesgos por Proyecto</span>
+            <span className="inline sm:hidden">Matriz de Riesgos</span>
           </CardTitle>
-          <P className="text-xs md:text-sm text-muted-foreground mt-0">
+          <Subtitle className="text-xs md:text-sm mt-1 sm:mt-2">
             Proyectos con Viabilidad Baja (1+ Rojos) o Prioridad Alta con Viabilidad Media (2+ Amarillos).
-          </P>
+          </Subtitle>
         </CardHeader>
         <CardContent className="p-0">
           
           {/* MÓVIL: Tarjetas */}
-          <div className="block md:hidden p-4">
+          <div className="block md:hidden p-3 sm:p-4">
             {matrixProjects.length === 0 ? (
-              <div className="py-8 text-center text-muted-foreground"><P>Sin riesgos críticos.</P></div>
+              <div className="py-8 text-center text-muted-foreground"><Subtitle>Sin riesgos críticos.</Subtitle></div>
             ) : (
               matrixProjects.map(project => (
                 <MobileProjectCard 
@@ -382,33 +387,35 @@ export function RisksView() {
       </Card>
 
       {/* GRID INFERIOR */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
         
         {/* Catálogo */}
         <Card className="flex flex-col h-full">
-          <CardHeader className="pb-3 border-b border-border/40">
+          <CardHeader className="p-3 sm:p-4 md:p-6 pb-3 border-b border-border/40">
             <CardTitle className="flex items-center gap-2 font-display text-base md:text-lg">
-              <AlertTriangle className="h-5 w-5 text-warning" /> Catálogo de Riesgos
+              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-warning" /> 
+              <span className="hidden sm:inline">Catálogo de Riesgos</span>
+              <span className="inline sm:hidden">Riesgos</span>
             </CardTitle>
             <Subtitle className="text-xs md:text-sm">Obstáculos en proyectos críticos.</Subtitle>
           </CardHeader>
-          <CardContent className="flex-1 p-4">
-            <div className="space-y-3 max-h-[400px] md:max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+          <CardContent className="flex-1 p-3 sm:p-4">
+            <div className="space-y-2 sm:space-y-3 max-h-[300px] sm:max-h-[400px] md:max-h-[500px] overflow-y-auto pr-1 sm:pr-2 custom-scrollbar">
               {allRisks.length === 0 ? (
                  <div className="text-center py-8 text-muted-foreground bg-muted/20 rounded-lg border border-dashed"><p className="text-sm">No hay riesgos registrados.</p></div>
               ) : (
                 allRisks.map((item, index) => (
-                  <div key={`${item.projectId}-${index}`} className="flex flex-col gap-2 p-3 bg-background border border-border rounded-lg shadow-sm hover:border-warning/50 transition-colors">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 bg-warning/10 p-1.5 rounded-md shrink-0"><AlertTriangle className="h-4 w-4 text-warning" /></div>
+                  <div key={`${item.projectId}-${index}`} className="flex flex-col gap-2 p-2.5 sm:p-3 bg-background border border-border rounded-lg shadow-sm hover:border-warning/50 transition-colors">
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <div className="mt-0.5 bg-warning/10 p-1.5 rounded-md shrink-0"><AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-warning" /></div>
                       <div className="space-y-1 min-w-0 flex-1">
-                         <p className="text-sm font-medium text-foreground leading-snug">{item.risk}</p>
-                         <p className="text-xs font-semibold text-primary/80 truncate">{item.project}</p>
+                         <p className="text-xs sm:text-sm font-medium text-foreground leading-snug">{item.risk}</p>
+                         <p className="text-[10px] sm:text-xs font-semibold text-primary/80 truncate">{item.project}</p>
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-4 mt-1 pt-2 border-t border-border/40 pl-10 text-xs text-muted-foreground">
-                       <div className="flex items-center gap-1.5"><User className="h-3 w-3" /><span className="truncate max-w-[120px]">{item.responsable}</span></div>
-                       <div className="flex items-center gap-1.5"><Building2 className="h-3 w-3" /><span className="truncate max-w-[120px]">{item.direccion}</span></div>
+                    <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-1 pt-2 border-t border-border/40 pl-8 sm:pl-10 text-[10px] sm:text-xs text-muted-foreground">
+                       <div className="flex items-center gap-1 sm:gap-1.5"><User className="h-3 w-3" /><span className="truncate max-w-[100px] sm:max-w-[120px]">{item.responsable}</span></div>
+                       <div className="flex items-center gap-1 sm:gap-1.5"><Building2 className="h-3 w-3" /><span className="truncate max-w-[100px] sm:max-w-[120px]">{item.direccion}</span></div>
                     </div>
                   </div>
                 ))
@@ -419,25 +426,27 @@ export function RisksView() {
 
         {/* Mitigación */}
         <Card className="flex flex-col h-full">
-          <CardHeader className="pb-3 border-b border-border/40">
+          <CardHeader className="p-3 sm:p-4 md:p-6 pb-3 border-b border-border/40">
             <CardTitle className="flex items-center gap-2 font-display text-base md:text-lg">
-              <ClipboardCheck className="h-5 w-5 text-success" /> Acciones de Mitigación
+              <ClipboardCheck className="h-4 w-4 sm:h-5 sm:w-5 text-success" /> 
+              <span className="hidden sm:inline">Acciones de Mitigación</span>
+              <span className="inline sm:hidden">Mitigación</span>
             </CardTitle>
             <Subtitle className="text-xs md:text-sm">Pasos para recuperar viabilidad.</Subtitle>
           </CardHeader>
-          <CardContent className="flex-1 p-4">
-            <div className="space-y-3 max-h-[400px] md:max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+          <CardContent className="flex-1 p-3 sm:p-4">
+            <div className="space-y-2 sm:space-y-3 max-h-[300px] sm:max-h-[400px] md:max-h-[500px] overflow-y-auto pr-1 sm:pr-2 custom-scrollbar">
               {mitigationProjects.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground bg-muted/20 rounded-lg border border-dashed"><p className="text-sm">Sin acciones pendientes.</p></div>
               ) : (
                 mitigationProjects.map(project => (
-                  <div key={project.id} className={cn("flex flex-col md:flex-row items-start gap-3 p-3 rounded-lg border transition-all hover:shadow-sm", project.viabilidad === 'baja' ? "bg-red-50/50 border-red-100" : "bg-orange-50/50 border-orange-100")}>
-                    <div className="p-2 rounded-full shrink-0 shadow-sm bg-background mt-0.5" style={{ color: project.viabilidad === 'baja' ? PRIORITY_COLORS.critica : PRIORITY_COLORS.alta }}>
-                      {project.viabilidad === 'baja' ? <ShieldAlert className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                  <div key={project.id} className={cn("flex flex-col md:flex-row items-start gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg border transition-all hover:shadow-sm", project.viabilidad === 'baja' ? "bg-red-50/50 border-red-100" : "bg-orange-50/50 border-orange-100")}>
+                    <div className="p-1.5 sm:p-2 rounded-full shrink-0 shadow-sm bg-background mt-0.5" style={{ color: project.viabilidad === 'baja' ? PRIORITY_COLORS.critica : PRIORITY_COLORS.alta }}>
+                      {project.viabilidad === 'baja' ? <ShieldAlert className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                     </div>
-                    <div className="flex-1 w-full min-w-0 space-y-2">
+                    <div className="flex-1 w-full min-w-0 space-y-1.5 sm:space-y-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-bold text-sm text-foreground truncate max-w-[200px]" title={project.nombre}>{project.nombre}</span>
+                        <span className="font-bold text-xs sm:text-sm text-foreground truncate max-w-[150px] sm:max-w-[200px]" title={project.nombre}>{project.nombre}</span>
                         <Badge variant="outline" className="text-[10px] px-2 py-0 h-5 whitespace-nowrap bg-background/50 backdrop-blur-sm"
                           style={{ borderColor: project.viabilidad === 'baja' ? PRIORITY_COLORS.critica : PRIORITY_COLORS.alta, color: project.viabilidad === 'baja' ? PRIORITY_COLORS.critica : PRIORITY_COLORS.alta }}>
                           {project.viabilidad.toUpperCase()}

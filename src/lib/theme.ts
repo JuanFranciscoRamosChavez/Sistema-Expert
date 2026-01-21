@@ -38,3 +38,13 @@ export const PRIORITY_COLORS = {
 	media: "#3b82f6",     // Azul (1.5 - 2.4)
 	baja: "#10b981"       // Verde (1.0 - 1.4)
 };
+
+// Usamos colores distintivos pero armónicos con la paleta Tailwind
+export const ZONE_PALETTE = {
+  norte: '#0ea5e9',    // Sky 500 (Azul claro)
+  sur: '#22c55e',      // Green 500 (Verde)
+  centro: '#eab308',   // Yellow 500 (Dorado/Amarillo)
+  oriente: '#a855f7',  // Purple 500 (Morado)
+  poniente: '#f43f5e', // Rose 500 (Rojo/Rosa)
+  sin_asignar: APP_COLORS.neutral // Gris
+};
