@@ -1,14 +1,35 @@
 import { useState, useEffect, useMemo } from 'react';
 import { 
+	Search, 
+	Filter, 
 	AlertTriangle, 
 	LayoutGrid, 
 	List as ListIcon, 
 	MapPin,
-	Search
+	X,
+	SlidersHorizontal 
 } from 'lucide-react';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { ProjectDetail } from '@/components/projects/ProjectDetail';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { 
+	Select, 
+	SelectContent, 
+	SelectItem, 
+	SelectTrigger, 
+	SelectValue 
+} from "@/components/ui/select";
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+	SheetFooter,
+	SheetClose
+} from "@/components/ui/sheet";
 import {
 	Table,
 	TableBody,
@@ -20,22 +41,45 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
-import { Project } from '@/types';
-import { useDashboardData } from '@/hooks/useDashboardData';
+import { Project } from '@/types/index';
+import { mapApiToUiProject } from '@/lib/mappers';
 import { H1, Subtitle } from "@/components/ui/typography";
 import { APP_COLORS, STATUS_COLORS } from '@/lib/theme';
-// Importamos el nuevo componente
-import { FilterBar, FilterConfig } from '@/components/shared/FilterBar';
 
 export function ProjectsView() {
-	// --- DATOS ---
-	const { projects, loading, error } = useDashboardData();
+	// --- ESTADOS ---
+	const [projects, setProjects] = useState<Project[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
 	
 	// Estados de Filtros y Vista
 	const [searchTerm, setSearchTerm] = useState('');
 	const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 	const [selectedArea, setSelectedArea] = useState<string>('all');
 	const [selectedStatus, setSelectedStatus] = useState<string>('all');
+
+	// --- CARGA DE DATOS ---
+	useEffect(() => {
+		const fetchProjects = async () => {
+			try {
+				const response = await fetch('http://127.0.0.1:8000/api/obras/');
+				if (!response.ok) {
+					throw new Error('No se pudo conectar con el servidor de proyectos');
+				}
+				const data = await response.json();
+				if (Array.isArray(data)) {
+					setProjects(data.map(mapApiToUiProject));
+				}
+			} catch (err) {
+				console.error("Error cargando proyectos:", err);
+				setError("Hubo un problema al cargar la lista de proyectos.");
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		fetchProjects();
+	}, []);
 
 	// --- EXTRACCIÓN DE OPCIONES PARA FILTROS ---
 	const uniqueAreas = useMemo(() => {
@@ -58,7 +102,24 @@ export function ProjectsView() {
 		return matchesSearch && matchesArea && matchesStatus;
 	});
 
-	// --- CONFIGURACIÓN DEL COMPONENTE FILTERBAR ---
+	// --- FUNCIÓN PARA LIMPIAR FILTROS ---
+	const clearFilters = () => {
+		setSearchTerm('');
+		setSelectedArea('all');
+		setSelectedStatus('all');
+	};
+
+	const hasActiveFilters = searchTerm !== '' || selectedArea !== 'all' || selectedStatus !== 'all';
+
+	const formatMoney = (amount: number) => {
+		return new Intl.NumberFormat('es-MX', {
+			style: 'currency',
+			currency: 'MXN',
+			minimumFractionDigits: 0,
+			maximumFractionDigits: 0,
+		}).format(amount);
+	};
+
 	const getStatusLabel = (status: string) => {
 		const labels: Record<string, string> = {
 			planificado: 'Planificado',
@@ -70,59 +131,47 @@ export function ProjectsView() {
 		return labels[status] || status;
 	};
 
-	const filterConfigs: FilterConfig[] = [
-		{
-			key: 'area',
-			label: 'Todas las áreas',
-			title: 'Área Responsable',
-			value: selectedArea,
-			onChange: setSelectedArea,
-			options: uniqueAreas.map(area => ({ label: area, value: area }))
-		},
-		{
-			key: 'status',
-			label: 'Todos los estatus',
-			title: 'Estatus Actual',
-			value: selectedStatus,
-			onChange: setSelectedStatus,
-			options: uniqueStatuses.map(status => ({ label: getStatusLabel(status), value: status }))
-		}
-	];
+	// --- COMPONENTE DE SELECTORES (SOLO DESKTOP) ---
+	const FilterControls = () => (
+		<>
+			{/* Filtro: Áreas */}
+			<div className="w-full md:w-[240px]">
+				<Select value={selectedArea} onValueChange={setSelectedArea}>
+					<SelectTrigger className="bg-background/60">
+						<div className="flex items-center gap-2 truncate">
+							<Filter className="h-3.5 w-3.5 text-muted-foreground" />
+							<SelectValue placeholder="Todas las áreas" />
+						</div>
+					</SelectTrigger>
+					{/* AJUSTE: max-h-[300px] para activar scroll si la lista es larga */}
+					<SelectContent className="max-h-[300px]">
+						<SelectItem value="all">Todas las áreas</SelectItem>
+						{uniqueAreas.map(area => (
+							<SelectItem key={area} value={area}>{area}</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+			</div>
 
-	const clearFilters = () => {
-		setSearchTerm('');
-		setSelectedArea('all');
-		setSelectedStatus('all');
-	};
-
-	// Contenido extra para el FilterBar (Toggle Grid/List)
-	const ViewToggle = (
-		<div className="flex bg-muted p-1 rounded-lg border border-border">
-			<button 
-				onClick={() => setViewMode('grid')} 
-				className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} 
-				title="Cuadrícula"
-			>
-				<LayoutGrid className="h-4 w-4" />
-			</button>
-			<button 
-				onClick={() => setViewMode('list')} 
-				className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} 
-				title="Lista"
-			>
-				<ListIcon className="h-4 w-4" />
-			</button>
-		</div>
+			{/* Filtro: Estatus */}
+			<div className="w-full md:w-[200px]">
+				<Select value={selectedStatus} onValueChange={setSelectedStatus}>
+					<SelectTrigger className="bg-background/60">
+						<SelectValue placeholder="Todos los estatus" />
+					</SelectTrigger>
+					{/* AJUSTE: max-h-[300px] aquí también por si acaso */}
+					<SelectContent className="max-h-[300px]">
+						<SelectItem value="all">Todos los estatus</SelectItem>
+						{uniqueStatuses.map(status => (
+							<SelectItem key={status} value={status}>
+								{getStatusLabel(status)}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+			</div>
+		</>
 	);
-
-	const formatMoney = (amount: number) => {
-		return new Intl.NumberFormat('es-MX', {
-			style: 'currency',
-			currency: 'MXN',
-			minimumFractionDigits: 0,
-			maximumFractionDigits: 0,
-		}).format(amount);
-	};
 
 	if (loading) return <div className="flex h-96 items-center justify-center gap-2 text-muted-foreground"><div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />Cargando cartera...</div>;
 	
@@ -138,24 +187,134 @@ export function ProjectsView() {
 		<div className="space-y-6 animate-fade-in pb-8">
 			
 			{/* 1. ENCABEZADO */}
-			<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-				<div>
-					<H1>Cartera de Proyectos</H1>
-					<Subtitle>
-						Mostrando {filteredProjects.length} de {projects.length} obras registradas
-					</Subtitle>
+			<div className="flex flex-col gap-4">
+				<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+					<div>
+						<H1>Cartera de Proyectos</H1>
+						<Subtitle>
+							Mostrando {filteredProjects.length} de {projects.length} obras registradas
+						</Subtitle>
+					</div>
+
+					{/* Toggle View (Solo Desktop) */}
+					<div className="hidden md:flex bg-muted p-1 rounded-lg border border-border">
+						<button onClick={() => setViewMode('grid')} className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title="Cuadrícula">
+							<LayoutGrid className="h-4 w-4" />
+						</button>
+						<button onClick={() => setViewMode('list')} className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title="Lista">
+							<ListIcon className="h-4 w-4" />
+						</button>
+					</div>
+				</div>
+				
+				{/* 2. BARRA DE FILTROS FLUIDA */}
+				<div className="flex gap-3 items-center bg-card p-3 rounded-xl border border-border shadow-sm">
+					
+					{/* BUSCADOR */}
+					<div className="relative flex-1">
+						<Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+						<Input 
+							placeholder="Buscar proyecto por nombre o responsable..." 
+							className="pl-9 bg-muted/30 border-transparent focus:bg-background transition-colors"
+							value={searchTerm}
+							onChange={(e) => setSearchTerm(e.target.value)}
+						/>
+						{searchTerm && (
+							<button onClick={() => setSearchTerm('')} className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground">
+								<X className="h-4 w-4" />
+							</button>
+						)}
+					</div>
+
+					{/* FILTROS DESKTOP */}
+					<div className="hidden md:flex gap-3 items-center">
+						<div className="w-[1px] h-8 bg-border mx-1" />
+						<FilterControls />
+						
+						{hasActiveFilters && (
+							<Button 
+								variant="ghost" 
+								size="sm" 
+								onClick={clearFilters}
+								className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+							>
+								Limpiar
+								<X className="ml-2 h-3 w-3" />
+							</Button>
+						)}
+					</div>
+
+					{/* FILTROS MOBILE (Sheet) */}
+					<div className="md:hidden">
+						<Sheet>
+							<SheetTrigger asChild>
+								<Button variant="outline" size="icon" className={hasActiveFilters ? "border-primary text-primary bg-primary/5" : ""}>
+									<SlidersHorizontal className="h-4 w-4" />
+									{(selectedArea !== 'all' || selectedStatus !== 'all') && (
+										<span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
+									)}
+								</Button>
+							</SheetTrigger>
+							<SheetContent side="bottom" className="rounded-t-[20px] h-auto max-h-[85vh]">
+								<SheetHeader className="mb-4 text-left">
+									<SheetTitle>Filtros Avanzados</SheetTitle>
+									<SheetDescription>
+										Refina la búsqueda por área o estado del proyecto.
+									</SheetDescription>
+								</SheetHeader>
+								
+								<div className="flex flex-col gap-4 py-4">
+									<div className="space-y-2">
+										<span className="text-sm font-medium">Área Responsable</span>
+										<Select value={selectedArea} onValueChange={setSelectedArea}>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Todas" />
+											</SelectTrigger>
+											{/* AJUSTE: max-h-[300px] para móviles también */}
+											<SelectContent className="max-h-[300px]">
+												<SelectItem value="all">Todas las áreas</SelectItem>
+												{uniqueAreas.map(area => (
+													<SelectItem key={area} value={area}>{area}</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+
+									<div className="space-y-2">
+										<span className="text-sm font-medium">Estatus Actual</span>
+										<Select value={selectedStatus} onValueChange={setSelectedStatus}>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Todos" />
+											</SelectTrigger>
+											<SelectContent className="max-h-[300px]">
+												<SelectItem value="all">Todos los estatus</SelectItem>
+												{uniqueStatuses.map(status => (
+													<SelectItem key={status} value={status}>
+														{getStatusLabel(status)}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+								</div>
+
+								<SheetFooter className="flex-row gap-3 pt-4 border-t border-border mt-2">
+									<Button 
+										variant="outline" 
+										className="flex-1"
+										onClick={clearFilters}
+									>
+										Limpiar Todo
+									</Button>
+									<SheetClose asChild>
+										<Button className="flex-1">Ver {filteredProjects.length} Resultados</Button>
+									</SheetClose>
+								</SheetFooter>
+							</SheetContent>
+						</Sheet>
+					</div>
 				</div>
 			</div>
-				
-			{/* 2. BARRA DE FILTROS REUTILIZABLE */}
-			<FilterBar 
-				searchTerm={searchTerm}
-				onSearchChange={setSearchTerm}
-				searchPlaceholder="Buscar proyecto por nombre o responsable..."
-				filters={filterConfigs}
-				onClearFilters={clearFilters}
-				extraActions={ViewToggle}
-			/>
 
 			{/* 3. CONTENIDO PRINCIPAL */}
 			{filteredProjects.length > 0 ? (
@@ -164,7 +323,7 @@ export function ProjectsView() {
 					{viewMode === 'grid' && (
 						<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-in fade-in zoom-in-95 duration-300">
 							{filteredProjects.map((project) => (
-								<ProjectCard key={project.id} project={project as any} />
+								<ProjectCard key={project.id} project={project} />
 							))}
 						</div>
 					)}
@@ -215,7 +374,7 @@ export function ProjectsView() {
 															<TableCell className="text-right pr-6 font-mono text-sm font-medium">{formatMoney(project.presupuesto)}</TableCell>
 														</TableRow>
 													</DialogTrigger>
-													<ProjectDetail project={project as any} />
+													<ProjectDetail project={project} />
 												</Dialog>
 											);
 										})}
