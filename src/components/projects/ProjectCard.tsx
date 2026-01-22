@@ -1,5 +1,5 @@
 import { CalendarDays, MapPin, User, ChevronRight } from 'lucide-react';
-import { Project } from '@/lib/mockData';
+import { Project } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';

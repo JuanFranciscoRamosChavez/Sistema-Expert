@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button'; // Importamos Button
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { Project } from '@/lib/mockData';
+import { Project } from '@/types';
 import { APP_COLORS, STATUS_COLORS } from '@/lib/theme';
 import { H3, P, Small, Subtitle } from '@/components/ui/typography';
 
