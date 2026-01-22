@@ -25,6 +25,11 @@ export interface Project {
   semaphores: ViabilitySemaphores;
   fechaInicio: string;
   fechaFin: string;
+  fecha_inicio_prog?: string;
+  fecha_termino_prog?: string;
+  fecha_inicio_real?: string;
+  fecha_termino_real?: string;
+  duracion_meses?: number;
   beneficiarios: number;
   ubicacion: string;
   alcanceTerritorial?: string; // Del Bloque 3 - Categorización

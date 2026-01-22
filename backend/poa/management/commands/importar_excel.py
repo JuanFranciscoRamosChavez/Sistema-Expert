@@ -47,12 +47,43 @@ class Command(BaseCommand):
 		def parse_date(val):
 			try:
 				if pd.isna(val) or val == '': return None
+				
 				# Manejo de fecha serial de Excel (enteros/floats)
 				if isinstance(val, (int, float)):
 					return (datetime(1899, 12, 30) + timedelta(days=val)).date()
-				# Manejo de strings (ISO, etc.)
+				
+				# Convertir a string para análisis de texto
+				val_str = str(val).strip()
+				
+				# Meses en español
+				meses = {
+					'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4,
+					'mayo': 5, 'junio': 6, 'julio': 7, 'agosto': 8,
+					'septiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12
+				}
+				
+				# Formato: "abril 2026", "mayo 2026" (solo mes y año)
+				import re
+				match_mes_anio = re.match(r'(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(\d{4})', val_str, re.IGNORECASE)
+				if match_mes_anio:
+					mes_nombre = match_mes_anio.group(1).lower()
+					anio = int(match_mes_anio.group(2))
+					mes = meses[mes_nombre]
+					return datetime(anio, mes, 1).date()  # Día 1 del mes
+				
+				# Formato: "28 de noviembre de 2025" (día completo)
+				match_completo = re.match(r'(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+de\s+(\d{4})', val_str, re.IGNORECASE)
+				if match_completo:
+					dia = int(match_completo.group(1))
+					mes_nombre = match_completo.group(2).lower()
+					anio = int(match_completo.group(3))
+					mes = meses[mes_nombre]
+					return datetime(anio, mes, dia).date()
+				
+				# Fallback: intentar parsing automático de pandas
 				return pd.to_datetime(val).date()
-			except:
+			except Exception as e:
+				# Si falla, retornar None (log opcional para debug)
 				return None
 
 		for _, row in df.iterrows():

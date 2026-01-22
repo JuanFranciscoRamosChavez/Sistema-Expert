@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Project } from '@/lib/mockData';
+import { Project, KPIData } from '@/types';
 import { mapApiToUiProject } from '@/lib/mappers';
-import { KPIData } from '@/types';
 import { API_ENDPOINTS } from '@/config/api';
 
 interface DashboardDataState {

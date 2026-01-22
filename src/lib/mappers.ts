@@ -1,5 +1,5 @@
-import { APIProject } from '@/types';
-import { Project, ProjectStatus, Priority, Viability, ViabilitySemaphores } from '@/lib/mockData';
+import { APIProject, Project } from '@/types';
+import { ProjectStatus, Priority, Viability, ViabilitySemaphores } from '@/lib/mockData';
 
 export function mapApiToUiProject(apiProject: APIProject): Project {
   // 1. OBTENER VALORES DE LOS 7 CRITERIOS (Bloque 4)
@@ -109,7 +109,7 @@ export function mapApiToUiProject(apiProject: APIProject): Project {
   ].filter(Boolean).join(' - ');
 
   return {
-    id: apiProject.id.toString(),
+    id: apiProject.id,
     nombre: apiProject.programa || 'Sin Nombre',
     descripcion: apiProject.impacto_social_desc || apiProject.observaciones || 'Sin descripción.',
     direccion: apiProject.area_responsable || 'General',
@@ -119,19 +119,23 @@ export function mapApiToUiProject(apiProject: APIProject): Project {
     status, 
     prioridad,
     viabilidad,
-    semaphores,
     riesgo: c6,
-    puntajePrioridad: Number(puntajeFinal.toFixed(2)), 
-    fechaInicio: apiProject.fecha_inicio_prog || new Date().toISOString(),
-    fechaFin: apiProject.fecha_termino_prog || new Date().toISOString(),
+    fechaInicio: apiProject.fecha_inicio_prog || apiProject.fecha_inicio_real || '',
+    fechaFin: apiProject.fecha_termino_prog || apiProject.fecha_termino_real || '',
+    fecha_inicio_prog: apiProject.fecha_inicio_prog,
+    fecha_termino_prog: apiProject.fecha_termino_prog,
+    fecha_inicio_real: apiProject.fecha_inicio_real,
+    fecha_termino_real: apiProject.fecha_termino_real,
+    duracion_meses: apiProject.duracion_meses,
     beneficiarios: apiProject.beneficiarios_num || 0,
     ubicacion: ubicacionCompleta || 'No especificada',
     alcanceTerritorial: apiProject.alcance_territorial, 
     zona: 'multiple',
-    objetivos: [apiProject.problema_resuelve].filter(Boolean) as string[],
     riesgos: listaRiesgos,
     accionesCorrectivas: apiProject.acciones_correctivas,
-    avance: avanceFisico, 
-    indicadores: []
+    avance: avanceFisico,
+    hitos_comunicacionales: apiProject.hitos_comunicacionales,
+    objetivo: apiProject.problema_resuelve || apiProject.solucion_ofrece,
+    puntuacion_final_ponderada: apiProject.puntuacion_final_ponderada
   };
 }

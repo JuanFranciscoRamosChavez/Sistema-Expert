@@ -79,6 +79,14 @@ export interface APIProject {
 	unidad_medida?: string;
 	dato_destacable?: string;
 	estatus_general?: string;
+	
+	// BLOQUE 12: Comunicación
+	hitos_comunicacionales?: string;
+	mensajes_clave?: string;
+	estrategia_comunicacion?: string;
+	relevancia_comunicacional?: string;
+	alineacion_gobierno?: string;
+	poblacion_perfil?: string;
 }
 
 export interface KPIData {
@@ -89,8 +97,7 @@ export interface KPIData {
 	en_ejecucion: number;
 }
 
-// 2. Lo que usa el Frontend (Interfaz limpia para componentes)
-export interface Project {
+	export interface Project {
 	id: number;
 	nombre: string;       // Viene de 'programa'
 	status: string;       // Viene de 'estatus_general' o 'semaforo'
@@ -103,6 +110,11 @@ export interface Project {
 	descripcion: string;  // Viene de 'impacto_social_desc'
 	fechaInicio: string;
 	fechaFin: string;
+	fecha_inicio_prog?: string;   // Fecha de inicio programada
+	fecha_termino_prog?: string;  // Fecha de término programada/estimada
+	fecha_inicio_real?: string;   // Fecha de inicio real
+	fecha_termino_real?: string;  // Fecha de término real (cuando concluyó)
+	duracion_meses?: number;      // Duración total del proyecto en meses
 	ubicacion: string;
 	zona: string;
 	alcanceTerritorial?: string; // Del Bloque 3 - Categorización
@@ -110,4 +122,10 @@ export interface Project {
 	prioridad: string;    // Derivado de 'urgencia_num'
 	riesgo: number;       // Mapeado directo de 'riesgo_nivel'
 	viabilidad?: string;
+	accionesCorrectivas?: string;
+	
+	// Comunicación
+	hitos_comunicacionales?: string;
+	objetivo?: string;  // Del problema_resuelve o solucion_ofrece
+	puntuacion_final_ponderada?: number;
 }

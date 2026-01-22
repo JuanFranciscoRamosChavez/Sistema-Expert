@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { Project, getStatusLabel, formatCurrency } from '@/lib/mockData';
-import { fetchProjects } from '@/lib/api';
+import { getStatusLabel, formatCurrency } from '@/lib/mockData';
+import { Project } from '@/types';
+import { useDashboardData } from '@/hooks/useDashboardData';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,30 +39,34 @@ const RISK_CATEGORIES = [
   { name: 'Baja', description: 'Punt. 1.0-1.4', icon: CheckCircle2, color: PRIORITY_COLORS.baja, bgColor: 'bg-emerald-50 dark:bg-emerald-900/20' },
 ];
 
-// --- HOOKS PERSONALIZADOS ---
-const useRiskData = () => {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await fetchProjects();
-      setProjects(data);
-      setLastUpdated(new Date());
-    } catch (error) {
-      console.error("Error cargando proyectos:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  return { projects, loading, refresh: loadData, lastUpdated };
+// Helper para obtener semáforos desde campos individuales del proyecto
+const getSemaphores = (project: Project) => {
+  // El tipo Project de @/types no tiene semaphores, pero tiene los campos individuales en APIProject
+  // Podemos inferir el nivel de riesgo basado en el campo 'riesgo' y 'viabilidad'
+  const semaphores: Record<string, 'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS'> = {};
+  
+  // Basado en el nivel de riesgo del proyecto
+  if (project.riesgo >= 4) {
+    semaphores.tecnica = 'ROJO';
+  } else if (project.riesgo === 3) {
+    semaphores.tecnica = 'AMARILLO';
+  } else {
+    semaphores.tecnica = 'VERDE';
+  }
+  
+  // Basado en viabilidad general
+  if (project.viabilidad === 'baja') {
+    semaphores.presupuestal = 'ROJO';
+    semaphores.juridica = 'AMARILLO';
+  } else if (project.viabilidad === 'media') {
+    semaphores.presupuestal = 'AMARILLO';
+    semaphores.juridica = 'VERDE';
+  } else {
+    semaphores.presupuestal = 'VERDE';
+    semaphores.juridica = 'VERDE';
+  }
+  
+  return semaphores;
 };
 
 // --- COMPONENTES AUXILIARES (MEMOIZADOS) ---
@@ -96,7 +101,7 @@ const MobileProjectCard = React.memo(({ project, isExpanded, onToggle }: { proje
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <Badge variant={project.status as any} className="whitespace-nowrap shadow-none text-[10px] h-5">
-                {getStatusLabel(project.status)}
+                {getStatusLabel(project.status as any)}
               </Badge>
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider"
                 style={{
@@ -139,11 +144,18 @@ const MobileProjectCard = React.memo(({ project, isExpanded, onToggle }: { proje
 
         {/* Semáforos */}
         <div className="flex items-center gap-2 flex-wrap pt-1 pb-1">
-          <SemaphoreIcon label="Técnica" status={project.semaphores.tecnica} Icon={Activity} />
-          <SemaphoreIcon label="Presupuestal" status={project.semaphores.presupuestal} Icon={Scale} />
-          <SemaphoreIcon label="Jurídica" status={project.semaphores.juridica} Icon={Gavel} />
-          <SemaphoreIcon label="Temporal" status={project.semaphores.temporal} Icon={Clock} />
-          <SemaphoreIcon label="Administrativa" status={project.semaphores.administrativa} Icon={Briefcase} />
+          {(() => {
+            const semaphores = getSemaphores(project);
+            return (
+              <>
+                <SemaphoreIcon label="Técnica" status={semaphores.tecnica} Icon={Activity} />
+                <SemaphoreIcon label="Presupuestal" status={semaphores.presupuestal} Icon={Scale} />
+                <SemaphoreIcon label="Jurídica" status={semaphores.juridica} Icon={Gavel} />
+                <SemaphoreIcon label="Temporal" status={semaphores.temporal || 'VERDE'} Icon={Clock} />
+                <SemaphoreIcon label="Administrativa" status={semaphores.administrativa || 'VERDE'} Icon={Briefcase} />
+              </>
+            );
+          })()}
         </div>
 
         {/* Expandible */}
@@ -162,7 +174,7 @@ const MobileProjectCard = React.memo(({ project, isExpanded, onToggle }: { proje
                 </ul>
               </div>
             )}
-            {project.accionesCorrectivas && (
+            {project.accionesCorrectivas && typeof project.accionesCorrectivas === 'string' && (
               <div className="bg-primary/5 p-3 rounded-md border border-primary/10">
                 <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-2">Mitigación</p>
                 <div className="flex items-start gap-2">
@@ -180,10 +192,10 @@ const MobileProjectCard = React.memo(({ project, isExpanded, onToggle }: { proje
 
 // --- COMPONENTE PRINCIPAL ---
 export function RisksView() {
-  const { projects, loading, refresh, lastUpdated } = useRiskData();
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const { projects, loading, error, refetch } = useDashboardData();
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
-  const toggleRow = useCallback((projectId: string) => {
+  const toggleRow = useCallback((projectId: number) => {
     setExpandedRows(prev => {
       const newSet = new Set(prev);
       if (newSet.has(projectId)) newSet.delete(projectId);
@@ -196,15 +208,18 @@ export function RisksView() {
   const { matrixProjects, allRisks, mitigationProjects, categories } = useMemo(() => {
     // 1. Matriz de Riesgos
     const matrix = projects.filter(p => {
+      const semaphores = getSemaphores(p);
       const { red, yellow } = {
-        red: Object.values(p.semaphores).filter(s => s === 'ROJO').length,
-        yellow: Object.values(p.semaphores).filter(s => s === 'AMARILLO').length
+        red: Object.values(semaphores).filter(s => s === 'ROJO').length,
+        yellow: Object.values(semaphores).filter(s => s === 'AMARILLO').length
       };
-      const score = p.puntajePrioridad || 0;
+      const score = p.puntuacion_final_ponderada || 0;
       return (score > 3 && yellow >= 2) || (red >= 1);
     }).sort((a, b) => {
         const vOrder = { 'baja': 0, 'media': 1, 'alta': 2 };
-        return vOrder[a.viabilidad] - vOrder[b.viabilidad];
+        const aViab = a.viabilidad || 'media';
+        const bViab = b.viabilidad || 'media';
+        return vOrder[aViab] - vOrder[bViab];
     });
 
     // 2. Catálogo
@@ -216,7 +231,7 @@ export function RisksView() {
 
     // 3. Mitigación
     const mitigations = projects.filter(p => {
-      const hasAction = p.accionesCorrectivas && p.accionesCorrectivas.trim().length > 0;
+      const hasAction = p.accionesCorrectivas && typeof p.accionesCorrectivas === 'string' && p.accionesCorrectivas.trim().length > 0;
       const isRiskContext = p.viabilidad === 'baja' || matrix.some(mp => mp.id === p.id);
       return hasAction && isRiskContext;
     });
@@ -253,7 +268,7 @@ export function RisksView() {
             Matriz de Priorización y Viabilidad.
           </Subtitle>
         </div>
-        <Button variant="outline" size="sm" onClick={refresh} className="gap-2 shrink-0 h-9">
+        <Button variant="outline" size="sm" onClick={refetch} className="gap-2 shrink-0 h-9">
           <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> 
           <span className="hidden sm:inline">Actualizar</span>
         </Button>
@@ -339,7 +354,7 @@ export function RisksView() {
                           </div>
                         </td>
                         <td className="py-4 px-4 align-top">
-                          <Badge variant={project.status as any} className="shadow-none">{getStatusLabel(project.status)}</Badge>
+                          <Badge variant={project.status as any} className="shadow-none">{getStatusLabel(project.status as any)}</Badge>
                         </td>
                         <td className="py-4 px-4 align-top">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border uppercase tracking-wider"
@@ -369,11 +384,18 @@ export function RisksView() {
                         </td>
                         <td className="py-4 px-4 align-top">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <SemaphoreIcon label="Técnica" status={project.semaphores.tecnica} Icon={Activity} />
-                            <SemaphoreIcon label="Presupuestal" status={project.semaphores.presupuestal} Icon={Scale} />
-                            <SemaphoreIcon label="Jurídica" status={project.semaphores.juridica} Icon={Gavel} />
-                            <SemaphoreIcon label="Temporal" status={project.semaphores.temporal} Icon={Clock} />
-                            <SemaphoreIcon label="Administrativa" status={project.semaphores.administrativa} Icon={Briefcase} />
+                            {(() => {
+                              const semaphores = getSemaphores(project);
+                              return (
+                                <>
+                                  <SemaphoreIcon label="Técnica" status={semaphores.tecnica} Icon={Activity} />
+                                  <SemaphoreIcon label="Presupuestal" status={semaphores.presupuestal} Icon={Scale} />
+                                  <SemaphoreIcon label="Jurídica" status={semaphores.juridica} Icon={Gavel} />
+                                  <SemaphoreIcon label="Temporal" status={semaphores.temporal || 'VERDE'} Icon={Clock} />
+                                  <SemaphoreIcon label="Administrativa" status={semaphores.administrativa || 'VERDE'} Icon={Briefcase} />
+                                </>
+                              );
+                            })()}
                           </div>
                         </td>
                       </tr>
@@ -454,7 +476,7 @@ export function RisksView() {
                       </div>
                       <div className="bg-background/60 p-2.5 rounded-md border border-black/5 text-sm shadow-sm backdrop-blur-sm">
                         <p className="font-bold text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Acción Requerida</p>
-                        <p className="text-foreground/90 leading-relaxed text-xs md:text-sm break-words">{project.accionesCorrectivas}</p>
+                        <p className="text-foreground/90 leading-relaxed text-xs md:text-sm break-words">{project.accionesCorrectivas || 'Sin acciones definidas'}</p>
                       </div>
                     </div>
                   </div>
