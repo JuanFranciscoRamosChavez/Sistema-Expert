@@ -97,6 +97,19 @@ export interface KPIData {
 	en_ejecucion: number;
 }
 
+// --- NUEVOS TIPOS AÑADIDOS PARA EL MAPPER ---
+export type ProjectStatus = 'planificado' | 'en_ejecucion' | 'en_riesgo' | 'retrasado' | 'completado';
+export type Priority = 'baja' | 'media' | 'alta' | 'muy_alta' | 'critica';
+export type Viability = 'baja' | 'media' | 'alta';
+
+export interface ViabilitySemaphores {
+	tecnica: 'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS';
+	presupuestal: 'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS';
+	juridica: 'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS';
+	temporal: 'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS';
+	administrativa: 'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS';
+}
+
 	export interface Project {
 	id: number;
 	nombre: string;       // Viene de 'programa'
@@ -124,8 +137,25 @@ export interface KPIData {
 	viabilidad?: string;
 	accionesCorrectivas?: string;
 	
+	// Semáforos de viabilidad
+	semaphores: ViabilitySemaphores;
+	
+	// Objetivos del proyecto
+	objetivos: string[];
+	
+	// Indicadores de desempeño
+	indicadores: {
+		nombre: string;
+		meta: number;
+		actual: number;
+		unidad: string;
+	}[];
+	
 	// Comunicación
 	hitos_comunicacionales?: string;
 	objetivo?: string;  // Del problema_resuelve o solucion_ofrece
 	puntuacion_final_ponderada?: number;
+	observaciones?: string;       // Soluciona el error .observaciones
+	problema_resuelve?: string;   // Soluciona el error .problema_resuelve
+	alcaldias?: string;
 }

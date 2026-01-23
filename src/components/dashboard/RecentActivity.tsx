@@ -2,7 +2,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge"; 
 import { CheckCircle2, AlertTriangle, Rocket, TrendingUp, AlertOctagon } from "lucide-react";
-import { Project } from "@/lib/mockData";
+import { Project } from "@/types";
 import { APP_COLORS } from "@/lib/theme";
 import { H3, Subtitle } from "@/components/ui/typography"; // <--- NUEVO IMPORT
 

@@ -9,7 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react";
-import { Project } from "@/lib/mockData";
+import { Project } from "@/types";
 import { cn } from "@/lib/utils";
 import { APP_COLORS, PRIORITY_COLORS } from "@/lib/theme"; 
 import { H3, Subtitle } from "@/components/ui/typography"; // <--- NUEVO IMPORT

@@ -68,7 +68,7 @@ export function DashboardView() {
 				/>
 				<KPICard
 					title="Beneficiarios"
-					value={formatBeneficiariesValue({ value: kpiData. beneficiarios })}
+				value={formatBeneficiariesValue({ value: kpiData.beneficiarios })}
 					subtitle={formatBeneficiariesSubtitle(kpiData.beneficiarios)}
 					icon={Users}
 					variant="info"

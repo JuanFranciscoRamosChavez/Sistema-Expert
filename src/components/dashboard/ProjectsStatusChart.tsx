@@ -1,5 +1,5 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { Project } from '@/lib/mockData';
+import { Project } from '@/types';
 import { APP_COLORS, STATUS_COLORS } from '@/lib/theme';
 import { H3, Subtitle } from '@/components/ui/typography'; // <--- NUEVO IMPORT
 
