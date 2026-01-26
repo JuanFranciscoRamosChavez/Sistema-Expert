@@ -1,0 +1,780 @@
+{
+  "arquitectura_frontend": {
+    "descripcion": "Sistema de gestión de Obras Públicas - Interfaz de usuario para POA 2026",
+    "tecnologias": {
+      "framework": "React 18",
+      "build_tool": "Vite",
+      "lenguaje": "TypeScript",
+      "estilos": "Tailwind CSS",
+      "ui_library": "shadcn/ui + Radix UI",
+      "graficas": "Recharts",
+      "estado": "TanStack Query (React Query)",
+      "routing": "React Router v6"
+    },
+    "estructura_directorios": {
+      "src/": {
+        "App.tsx": "Componente raíz de la aplicación",
+        "main.tsx": "Punto de entrada, setup de providers",
+        "index.css": "Estilos globales y Tailwind",
+        "vite-env.d.ts": "Tipos de Vite"
+      },
+      "src/components/": {
+        "ui/": "Componentes base de shadcn/ui (Button, Card, Dialog, etc)",
+        "dashboard/": "Componentes específicos del dashboard",
+        "layout/": "Componentes de layout (Header, Sidebar, etc)",
+        "projects/": "Componentes de gestión de proyectos",
+        "views/": "Vistas principales (páginas completas)",
+        "examples/": "Componentes de ejemplo/demo"
+      },
+      "src/hooks/": {
+        "descripcion": "Custom hooks para lógica reutilizable",
+        "patron": "Hooks que consumen API con TanStack Query"
+      },
+      "src/lib/": {
+        "descripcion": "Utilidades, helpers y configuraciones",
+        "archivos_clave": [
+          "queryClient.ts - Configuración de React Query",
+          "utils.ts - Funciones utilitarias",
+          "mappers.ts - Transformación de datos API a UI",
+          "formatters.ts - Formato de números, fechas, moneda",
+          "zones.ts - Mapeo de zonas geográficas"
+        ]
+      },
+      "src/pages/": {
+        "Index.tsx": "Página principal (Dashboard)",
+        "NotFound.tsx": "Página 404"
+      },
+      "src/types/": {
+        "index.ts": "Definiciones de tipos TypeScript"
+      },
+      "src/config/": {
+        "api.ts": "Configuración de URLs de API"
+      }
+    }
+  },
+  "tipos_typescript": {
+    "archivo": "src/types/index.ts",
+    "interfaces_principales": {
+      "APIProject": {
+        "descripcion": "Estructura exacta que viene del backend",
+        "origen": "Endpoint /api/v2/obras/",
+        "campos_clave": [
+          "id", "programa", "responsable_operativo", "area_responsable",
+          "presupuesto_final", "monto_ejecutado", "avance_fisico_pct",
+          "semaforo", "fecha_inicio_prog", "fecha_termino_prog",
+          "viabilidad_*_semaforo", "puntuacion_final_ponderada"
+        ]
+      },
+      "Project": {
+        "descripcion": "Interfaz normalizada para uso en UI",
+        "origen": "Transformación de APIProject via mappers.ts",
+        "campos_principales": {
+          "id": "number",
+          "nombre": "string - Mapeado de 'programa'",
+          "programa": "string - Campo original del backend",
+          "status": "string - Estado del proyecto",
+          "avance": "number - % avance físico",
+          "avance_fisico_pct": "number - Campo original",
+          "presupuesto": "number",
+          "ejecutado": "number",
+          "responsable": "string",
+          "direccion": "string - Área responsable",
+          "area_responsable": "string - Campo original",
+          "riesgos": "array - Lista de riesgos",
+          "descripcion": "string",
+          "fechaInicio": "string",
+          "fechaFin": "string",
+          "ubicacion": "string",
+          "ubicacion_especifica": "string - Campo original",
+          "zona": "string",
+          "beneficiarios": "number",
+          "prioridad": "string",
+          "riesgo": "number",
+          "semaphores": "ViabilitySemaphores - 5 semáforos",
+          "objetivos": "array",
+          "indicadores": "array"
+        }
+      },
+      "KPIData": {
+        "descripcion": "Datos del endpoint /v2/dashboard/kpis/",
+        "estructura": {
+          "projects": {
+            "total": "number",
+            "active": "number",
+            "completed": "number"
+          },
+          "zones": {
+            "total": "number",
+            "label": "string",
+            "list": "array"
+          },
+          "budget": {
+            "total": "number",
+            "executed": "number",
+            "remaining": "number",
+            "execution_rate": "number",
+            "formatted_total": "string",
+            "formatted_executed": "string"
+          },
+          "progress": {
+            "average": "number",
+            "label": "string"
+          },
+          "by_status": "array",
+          "timestamp": "string"
+        }
+      },
+      "ViabilitySemaphores": {
+        "descripcion": "5 semáforos de viabilidad",
+        "campos": {
+          "tecnica": "'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS'",
+          "presupuestal": "'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS'",
+          "juridica": "'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS'",
+          "temporal": "'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS'",
+          "administrativa": "'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS'"
+        }
+      },
+      "TerritorialDataV2": {
+        "descripcion": "Datos territoriales para gráficas",
+        "estructura": {
+          "pie_chart_data": "array - Datos para gráfica de pastel",
+          "bar_chart_data": "array - Datos para gráfica de barras",
+          "_meta": "object - Metadata"
+        }
+      }
+    },
+    "enums": {
+      "ProjectStatus": "'planificado' | 'en_ejecucion' | 'en_riesgo' | 'retrasado' | 'completado'",
+      "Priority": "'baja' | 'media' | 'alta' | 'muy_alta' | 'critica'",
+      "Viability": "'baja' | 'media' | 'alta'"
+    }
+  },
+  "custom_hooks": {
+    "ubicacion": "src/hooks/",
+    "patron": "Todos usan TanStack Query para caching y manejo de estado",
+    "hooks_disponibles": {
+      "useDashboardKPIs": {
+        "archivo": "useDashboardKPIs.ts",
+        "descripcion": "Obtiene KPIs dinámicos del dashboard",
+        "endpoint": "GET /api/v2/dashboard/kpis/",
+        "retorna": "{ data: KPIData, isLoading, error, refetch }",
+        "cache": {
+          "staleTime": "5 minutos",
+          "gcTime": "10 minutos"
+        },
+        "uso": "const { data: kpis, isLoading } = useDashboardKPIs();"
+      },
+      "useDashboardData": {
+        "archivo": "useDashboardData.ts",
+        "descripcion": "Hook legacy para datos del dashboard",
+        "estado": "Deprecado - Usar useDashboardKPIs"
+      },
+      "useFilteredProjects": {
+        "archivo": "useFilteredProjects.ts",
+        "descripcion": "Obtiene proyectos con filtros avanzados",
+        "endpoint": "GET /api/v2/obras/filtered/",
+        "parametros": {
+          "status": "string - Estado del proyecto",
+          "direccion": "string - Área responsable",
+          "days_threshold": "number - Días para entregas",
+          "year": "number - Año de ejecución",
+          "has_milestones": "boolean - Con hitos",
+          "score_range": "string - Rango de priorización",
+          "page": "number - Página actual",
+          "page_size": "number | 'todos'"
+        },
+        "retorna": "{ data: { results, count, next, prev }, isLoading, error }",
+        "uso": "const { data } = useFilteredProjects({ status: 'en_ejecucion', page: 1 });"
+      },
+      "useTerritories": {
+        "archivo": "useTerritories.ts",
+        "descripcion": "Obtiene datos territoriales para gráficas",
+        "endpoint": "GET /api/v2/dashboard/territorial/",
+        "parametros": {
+          "version": "'v1' | 'v2' - v2 es más rápido"
+        },
+        "retorna": "TerritorialDataV2"
+      },
+      "useBudgetByDirection": {
+        "archivo": "useBudgetByDirection.ts",
+        "descripcion": "Presupuesto agrupado por dirección",
+        "endpoint": "GET /api/v2/dashboard/budget-by-direction/",
+        "uso_en": "BudgetChart.tsx"
+      },
+      "useCriticalProjects": {
+        "archivo": "useCriticalProjects.ts",
+        "descripcion": "Top proyectos críticos",
+        "endpoint": "GET /api/v2/dashboard/critical-projects/",
+        "uso_en": "CriticalProjectsTable.tsx"
+      },
+      "useRecentActivity": {
+        "archivo": "useRecentActivity.ts",
+        "descripcion": "Actividad reciente del sistema",
+        "endpoint": "GET /api/v2/dashboard/recent-activity/",
+        "uso_en": "RecentActivity.tsx"
+      },
+      "useRiskAnalysis": {
+        "archivo": "useRiskAnalysis.ts",
+        "descripcion": "Análisis de riesgos por categoría",
+        "endpoint": "GET /api/v2/dashboard/risk-analysis/",
+        "uso_en": "RisksView.tsx"
+      },
+      "use-toast": {
+        "archivo": "use-toast.ts",
+        "descripcion": "Hook para mostrar notificaciones toast",
+        "proveedor": "shadcn/ui",
+        "uso": "const { toast } = useToast(); toast({ title: 'Éxito' });"
+      },
+      "use-mobile": {
+        "archivo": "use-mobile.tsx",
+        "descripcion": "Detecta si es dispositivo móvil",
+        "uso": "const isMobile = useMobile();"
+      }
+    }
+  },
+  "vistas_principales": {
+    "ubicacion": "src/components/views/",
+    "vistas": {
+      "DashboardView": {
+        "archivo": "DashboardView.tsx",
+        "ruta": "/",
+        "descripcion": "Vista ejecutiva principal con KPIs",
+        "componentes_internos": [
+          "KPICard (x4) - Tarjetas de métricas principales",
+          "ProjectsStatusChart - Gráfica de estado de proyectos",
+          "BudgetChart - Gráfica de presupuesto por dirección",
+          "CriticalProjectsTable - Tabla de proyectos críticos",
+          "RecentActivity - Lista de actividad reciente"
+        ],
+        "hooks_usados": ["useDashboardKPIs"],
+        "estados": {
+          "loading": "Spinner con mensaje 'Cargando datos...'",
+          "error": "Mensaje con AlertTriangle y sugerencia de verificar backend",
+          "success": "Renderiza dashboard completo"
+        }
+      },
+      "ProjectsView": {
+        "archivo": "ProjectsView.tsx",
+        "ruta": "/proyectos",
+        "descripcion": "Vista de gestión de proyectos con filtros",
+        "funcionalidades": [
+          "Búsqueda por texto",
+          "Filtros múltiples (estado, dirección, zona)",
+          "Paginación",
+          "Vista de tarjetas o tabla",
+          "Detalles de proyecto en modal"
+        ],
+        "hooks_usados": ["useFilteredProjects"],
+        "filtros_disponibles": {
+          "busqueda": "Texto libre en nombre/descripción",
+          "status": "Estado del proyecto",
+          "direccion": "Área responsable",
+          "zona": "Zona geográfica",
+          "prioridad": "Nivel de prioridad",
+          "riesgo": "Nivel de riesgo"
+        }
+      },
+      "TerritorialView": {
+        "archivo": "TerritorialView.tsx",
+        "ruta": "/territorial",
+        "descripcion": "Análisis territorial con mapas y gráficas",
+        "componentes_internos": [
+          "TerritorialPieChart - Distribución presupuestal",
+          "TerritorialBarChart - Proyectos por zona",
+          "ZoneDetails - Detalles de zona seleccionada",
+          "ProjectsList - Lista de proyectos por zona"
+        ],
+        "hooks_usados": ["useTerritories"],
+        "interactividad": "Click en zona muestra proyectos específicos"
+      },
+      "TimelineView": {
+        "archivo": "TimelineView.tsx",
+        "ruta": "/cronograma",
+        "descripcion": "Vista de cronograma y entregas próximas",
+        "secciones": {
+          "proximas_entregas": "Proyectos con fecha fin cercana",
+          "linea_tiempo": "Cronograma visual de proyectos",
+          "hitos": "Proyectos con hitos comunicacionales"
+        },
+        "filtros": {
+          "days_threshold": "Entregas en próximos N días",
+          "area": "Filtro por área responsable",
+          "year": "Filtro por año"
+        },
+        "hooks_usados": ["useFilteredProjects (x3 instancias)"]
+      },
+      "RisksView": {
+        "archivo": "RisksView.tsx",
+        "ruta": "/riesgos",
+        "descripcion": "Análisis de riesgos y proyectos en alerta",
+        "componentes_internos": [
+          "RiskLevelChart - Distribución por nivel de riesgo",
+          "SemaphoreStatus - Estado de semáforos",
+          "CriticalProjectsList - Proyectos críticos",
+          "RecommendationsList - Recomendaciones"
+        ],
+        "hooks_usados": ["useRiskAnalysis"],
+        "metricas_mostradas": [
+          "Distribución por nivel de riesgo",
+          "Estado de 5 semáforos de viabilidad",
+          "Top proyectos críticos",
+          "Recomendaciones automatizadas"
+        ]
+      }
+    }
+  },
+  "componentes_dashboard": {
+    "ubicacion": "src/components/dashboard/",
+    "componentes": {
+      "KPICard": {
+        "archivo": "KPICard.tsx",
+        "descripcion": "Tarjeta de métrica con animación",
+        "props": {
+          "title": "string - Título de la métrica",
+          "value": "string | number - Valor principal",
+          "subtitle": "string - Descripción adicional",
+          "icon": "LucideIcon - Icono",
+          "variant": "'default' | 'success' | 'info' | 'warning' - Estilo",
+          "delay": "number - Delay de animación (ms)"
+        },
+        "animaciones": "Fade-in con delay escalonado"
+      },
+      "ProjectsStatusChart": {
+        "archivo": "ProjectsStatusChart.tsx",
+        "descripcion": "Gráfica de estado de proyectos (pie/donut)",
+        "libreria": "Recharts",
+        "tipo_grafica": "PieChart",
+        "datos": "Consumidos desde useDashboardKPIs",
+        "interactiva": "Hover muestra tooltips"
+      },
+      "BudgetChart": {
+        "archivo": "BudgetChart.tsx",
+        "descripcion": "Gráfica de presupuesto por dirección",
+        "libreria": "Recharts",
+        "tipo_grafica": "BarChart",
+        "datos": "Consumidos desde useBudgetByDirection",
+        "formateo": "Moneda con separadores de miles"
+      },
+      "CriticalProjectsTable": {
+        "archivo": "CriticalProjectsTable.tsx",
+        "descripcion": "Tabla de top 10 proyectos críticos",
+        "datos": "Consumidos desde useCriticalProjects",
+        "columnas": [
+          "Proyecto (nombre)",
+          "Semáforo",
+          "Nivel de Riesgo",
+          "Avance %",
+          "Acciones"
+        ],
+        "acciones": "Ver detalles en modal"
+      },
+      "RecentActivity": {
+        "archivo": "RecentActivity.tsx",
+        "descripcion": "Lista de actividad reciente",
+        "datos": "Consumidos desde useRecentActivity",
+        "muestra": "Últimas actualizaciones de proyectos"
+      }
+    }
+  },
+  "componentes_ui": {
+    "ubicacion": "src/components/ui/",
+    "descripcion": "Componentes base de shadcn/ui + customizaciones",
+    "componentes_principales": {
+      "button": "Botón con variantes y tamaños",
+      "card": "Contenedor de tarjeta",
+      "dialog": "Modal/diálogo",
+      "input": "Campo de entrada de texto",
+      "select": "Selector dropdown",
+      "table": "Tabla con estilos",
+      "badge": "Etiqueta/badge",
+      "progress": "Barra de progreso",
+      "tabs": "Pestañas",
+      "tooltip": "Tooltip",
+      "toast": "Notificaciones",
+      "typography": "Componentes de texto (H1, H2, Subtitle, etc)"
+    },
+    "personalizacion": "Todos usan Tailwind CSS y pueden personalizarse via className"
+  },
+  "utilidades": {
+    "ubicacion": "src/lib/",
+    "archivos": {
+      "mappers.ts": {
+        "descripcion": "Transforma datos del backend a formato UI",
+        "funcion_principal": "mapApiToUiProject()",
+        "transformaciones": [
+          "Calcula prioridad desde puntuación (1-5)",
+          "Deriva status desde avance y riesgo",
+          "Normaliza semáforos de viabilidad",
+          "Convierte problemas_identificados a array de riesgos",
+          "Calcula viabilidad desde semáforos (baja/media/alta)",
+          "Asegura campos obligatorios con defaults"
+        ],
+        "logica_status": {
+          "completado": "avance_fisico >= 99.9%",
+          "en_riesgo": "riesgo_nivel <= 2 O 1+ semáforos rojos O 2+ amarillos",
+          "en_ejecucion": "avance_fisico > 0 O avance_financiero > 0",
+          "planificado": "avances = 0 y riesgo bajo"
+        },
+        "logica_prioridad": {
+          "critica": "puntuación >= 4.5",
+          "muy_alta": "puntuación >= 3.5",
+          "alta": "puntuación >= 2.5",
+          "media": "puntuación >= 1.5",
+          "baja": "puntuación < 1.5"
+        }
+      },
+      "formatters.ts": {
+        "descripcion": "Funciones de formateo de datos",
+        "funciones": {
+          "formatCurrency": "Formatea números como moneda MXN",
+          "formatNumber": "Formatea números con separadores de miles",
+          "formatPercent": "Formatea porcentajes",
+          "formatDate": "Formatea fechas a formato local",
+          "formatRelativeDate": "Fechas relativas (hace 2 días)"
+        }
+      },
+      "utils.ts": {
+        "descripcion": "Utilidades generales",
+        "funciones": {
+          "cn": "Helper para combinar classNames de Tailwind",
+          "debounce": "Debounce para búsquedas",
+          "truncate": "Trunca texto largo"
+        }
+      },
+      "zones.ts": {
+        "descripcion": "Mapeo de zonas geográficas (mismo que backend)",
+        "constantes": {
+          "ZONA_MAPPING": "Mapeo de alcaldías a zonas",
+          "ZONE_COLORS": "Colores para cada zona en gráficas",
+          "detectZone": "Función para detectar zona desde texto"
+        }
+      },
+      "queryClient.ts": {
+        "descripcion": "Configuración de TanStack Query",
+        "configuracion": {
+          "defaultOptions": {
+            "staleTime": "2 minutos por defecto",
+            "gcTime": "5 minutos",
+            "retry": "1 intento",
+            "refetchOnWindowFocus": false
+          }
+        }
+      },
+      "theme.ts": {
+        "descripcion": "Configuración de tema (colores, etc)",
+        "modos": ["light", "dark"],
+        "colores_principales": [
+          "primary - Azul principal",
+          "secondary - Gris",
+          "success - Verde",
+          "warning - Amarillo",
+          "destructive - Rojo"
+        ]
+      }
+    }
+  },
+  "configuracion_api": {
+    "archivo": "src/config/api.ts",
+    "variable_entorno": "VITE_API_BASE_URL",
+    "default": "http://localhost:8000/api",
+    "uso": "import { API_BASE_URL } from '@/config/api'",
+    "cambio_produccion": "Modificar .env o variable de entorno"
+  },
+  "routing": {
+    "libreria": "React Router v6",
+    "archivo_principal": "src/App.tsx",
+    "rutas": {
+      "/": {
+        "componente": "Index (DashboardView)",
+        "descripcion": "Dashboard principal"
+      },
+      "/proyectos": {
+        "componente": "ProjectsView",
+        "descripcion": "Gestión de proyectos"
+      },
+      "/territorial": {
+        "componente": "TerritorialView",
+        "descripcion": "Análisis territorial"
+      },
+      "/cronograma": {
+        "componente": "TimelineView",
+        "descripcion": "Cronograma y entregas"
+      },
+      "/riesgos": {
+        "componente": "RisksView",
+        "descripcion": "Análisis de riesgos"
+      },
+      "*": {
+        "componente": "NotFound",
+        "descripcion": "Página 404"
+      }
+    },
+    "navegacion": "NavLink component con active state"
+  },
+  "estado_global": {
+    "patron": "Server State con TanStack Query",
+    "descripcion": "No usa Redux/Context API para datos del servidor",
+    "ventajas": [
+      "Caching automático",
+      "Refetch inteligente",
+      "Loading/error states incluidos",
+      "Sincronización entre componentes",
+      "Optimistic updates"
+    ],
+    "query_keys": {
+      "dashboard_kpis": "['dashboard', 'kpis']",
+      "projects_filtered": "['projects', 'filtered', filters]",
+      "territories": "['dashboard', 'territorial']",
+      "budget": "['dashboard', 'budget-by-direction']",
+      "critical": "['dashboard', 'critical-projects']",
+      "risks": "['dashboard', 'risk-analysis']"
+    }
+  },
+  "estilos": {
+    "sistema": "Tailwind CSS",
+    "archivo_config": "tailwind.config.ts",
+    "personalizacion": {
+      "colores": "Definidos en theme.ts y extendidos en Tailwind",
+      "animaciones": "animate-fade-in, animate-slide-up, etc",
+      "breakpoints": {
+        "sm": "640px",
+        "md": "768px",
+        "lg": "1024px",
+        "xl": "1280px",
+        "2xl": "1536px"
+      }
+    },
+    "convenciones": {
+      "espaciado": "gap-4, space-y-6, p-4, etc",
+      "responsive": "Mobile-first (sm:, md:, lg: prefixes)",
+      "dark_mode": "dark: prefix para modo oscuro"
+    }
+  },
+  "manejo_errores": {
+    "estrategias": {
+      "api_errors": "Capturados por TanStack Query y mostrados en UI",
+      "loading_states": "Spinners con mensajes descriptivos",
+      "empty_states": "Mensajes amigables cuando no hay datos",
+      "error_boundaries": "React Error Boundaries para errores críticos",
+      "toast_notifications": "Feedback visual con useToast"
+    },
+    "validaciones": {
+      "defensive": "Operadores ?. y ?? para evitar crashes",
+      "type_checking": "TypeScript previene errores en desarrollo",
+      "fallbacks": "Valores por defecto para datos faltantes"
+    }
+  },
+  "optimizaciones": {
+    "performance": {
+      "code_splitting": "Lazy loading de rutas con React.lazy",
+      "memoization": "React.memo en componentes pesados",
+      "virtual_scrolling": "Para listas largas (pendiente)",
+      "image_optimization": "Lazy loading de imágenes",
+      "debouncing": "En búsquedas y filtros"
+    },
+    "caching": {
+      "tanstack_query": "Cache automático con staleTime/gcTime",
+      "browser_cache": "Assets estáticos cacheados por Vite"
+    }
+  },
+  "build_deploy": {
+    "comando_dev": "npm run dev",
+    "comando_build": "npm run build",
+    "comando_preview": "npm run preview",
+    "output": "dist/",
+    "configuracion": "vite.config.ts",
+    "variables_entorno": {
+      "desarrollo": ".env.local",
+      "produccion": ".env.production",
+      "variable_api": "VITE_API_BASE_URL"
+    }
+  },
+  "testing": {
+    "estado": "No implementado aún",
+    "recomendaciones": {
+      "unit": "Vitest + React Testing Library",
+      "e2e": "Playwright o Cypress",
+      "coverage": "Vitest coverage"
+    }
+  },
+  "patrones_diseno": {
+    "componentes": {
+      "composicion": "Componentes pequeños y reutilizables",
+      "props_drilling": "Evitado con React Query (server state)",
+      "render_props": "Usado en algunos componentes shadcn",
+      "compound_components": "Dialog, Tabs, etc de Radix UI"
+    },
+    "hooks": {
+      "custom_hooks": "Encapsulan lógica reutilizable",
+      "separacion": "Hooks de datos separados de hooks de UI",
+      "nomenclatura": "use* para todos los hooks"
+    },
+    "carpetas": {
+      "feature_based": "Componentes agrupados por feature (dashboard, projects, etc)",
+      "shared": "Componentes UI y utils compartidos"
+    }
+  },
+  "flujo_datos": {
+    "descripcion": "Flujo de datos desde backend a UI",
+    "pasos": [
+      "1. Backend expone endpoint REST",
+      "2. Custom hook (use*) hace fetch con TanStack Query",
+      "3. Query cachea respuesta y maneja loading/error",
+      "4. Hook retorna { data, isLoading, error, refetch }",
+      "5. Componente consume hook",
+      "6. Componente renderiza UI basado en estado",
+      "7. Mappers transforman datos si es necesario",
+      "8. Formatters aplican formato visual"
+    ],
+    "ejemplo_codigo": {
+      "hook": "const { data, isLoading } = useDashboardKPIs();",
+      "loading": "if (isLoading) return <Spinner />;",
+      "error": "if (error) return <ErrorMessage />;",
+      "render": "return <KPICard value={data.projects.total} />;"
+    }
+  },
+  "migracion_sprint3": {
+    "descripcion": "Migración de lógica del frontend al backend",
+    "completado": [
+      "KPIs dinámicos movidos a backend",
+      "Análisis territorial optimizado (v2)",
+      "Filtrado avanzado con paginación",
+      "Análisis de riesgos en backend",
+      "Parsing de fechas en backend"
+    ],
+    "beneficios": [
+      "Frontend más liviano",
+      "Mejor performance (cálculos en DB)",
+      "Single source of truth",
+      "Caché más efectivo",
+      "Menos lógica duplicada"
+    ],
+    "archivos_deprecados": {
+      "src/lib/territoryCalculations.ts": "Reemplazado por backend v2",
+      "useDashboardData.ts": "Reemplazado por useDashboardKPIs"
+    }
+  },
+  "convenciones_codigo": {
+    "typescript": {
+      "strict": true,
+      "interfaces_vs_types": "Interfaces para objetos, types para unions",
+      "nomenclatura": "PascalCase para componentes/tipos, camelCase para funciones"
+    },
+    "react": {
+      "functional_components": "Solo componentes funcionales, no clases",
+      "hooks_rules": "Seguir reglas de hooks (top-level, no condicionales)",
+      "props_destructuring": "Destructurar props en parámetros"
+    },
+    "archivos": {
+      "componentes": "*.tsx para componentes React",
+      "tipos": "*.ts para archivos sin JSX",
+      "estilos": "*.css solo para globales, usar Tailwind inline"
+    }
+  },
+  "comandos_desarrollo": {
+    "npm_run_dev": "Inicia servidor de desarrollo (http://localhost:8080)",
+    "npm_run_build": "Build de producción en dist/",
+    "npm_run_preview": "Preview del build de producción",
+    "npm_run_lint": "Ejecuta ESLint",
+    "npm_run_type_check": "Verifica tipos TypeScript"
+  },
+  "dependencias_clave": {
+    "react": "^18.x - Librería UI",
+    "react-router-dom": "^6.x - Routing",
+    "@tanstack/react-query": "^5.x - Server state management",
+    "recharts": "^2.x - Gráficas",
+    "@radix-ui/*": "Primitivos de UI headless",
+    "tailwindcss": "^3.x - CSS utility-first",
+    "lucide-react": "Iconos",
+    "clsx": "Utilidad para classNames",
+    "date-fns": "Manejo de fechas"
+  },
+  "problemas_comunes": {
+    "cors_error": {
+      "problema": "Error de CORS al hacer fetch",
+      "solucion": "Verificar que backend tenga CORS_ALLOWED_ORIGINS correcto"
+    },
+    "404_api": {
+      "problema": "Cannot GET /api/...",
+      "solucion": "Verificar que backend esté corriendo en puerto 8000"
+    },
+    "type_errors": {
+      "problema": "TypeScript reporta tipos incorrectos",
+      "solucion": "Actualizar interfaces en src/types/index.ts"
+    },
+    "cache_stale": {
+      "problema": "Datos no se actualizan",
+      "solucion": "Ajustar staleTime en hook o forzar refetch()"
+    },
+    "build_errors": {
+      "problema": "Error al hacer build",
+      "solucion": "Revisar imports, tipos y limpiar node_modules"
+    }
+  },
+  "modificaciones_comunes": {
+    "agregar_vista": {
+      "pasos": [
+        "1. Crear componente en src/components/views/",
+        "2. Agregar ruta en App.tsx",
+        "3. Agregar NavLink en layout/Header",
+        "4. Crear custom hook si consume API nueva"
+      ]
+    },
+    "agregar_hook": {
+      "pasos": [
+        "1. Crear archivo en src/hooks/use*.ts",
+        "2. Usar useQuery o useMutation de TanStack Query",
+        "3. Definir queryKey único",
+        "4. Especificar tipos de retorno",
+        "5. Configurar staleTime y gcTime apropiados"
+      ],
+      "template": "export const useMyData = () => useQuery({ queryKey: ['my-data'], queryFn: async () => { ... } });"
+    },
+    "agregar_componente": {
+      "pasos": [
+        "1. Crear componente en carpeta apropiada",
+        "2. Definir Props interface",
+        "3. Usar componentes shadcn/ui como base",
+        "4. Aplicar estilos con Tailwind",
+        "5. Exportar desde index si es componente compartido"
+      ]
+    },
+    "modificar_tipos": {
+      "archivo": "src/types/index.ts",
+      "accion": "Agregar o modificar interfaces",
+      "nota": "Asegurarse de que coincidan con respuesta del backend"
+    },
+    "cambiar_api_url": {
+      "archivo": ".env.local",
+      "variable": "VITE_API_BASE_URL",
+      "ejemplo": "VITE_API_BASE_URL=https://api.ejemplo.com/api"
+    }
+  },
+  "mejores_practicas": {
+    "performance": [
+      "Usar React.memo para componentes que re-renderizan frecuentemente",
+      "Evitar cálculos pesados en render, usar useMemo",
+      "Debounce en búsquedas y filtros",
+      "Lazy load de componentes pesados"
+    ],
+    "accesibilidad": [
+      "Usar etiquetas semánticas (button, nav, main, etc)",
+      "Aria-labels en iconos y botones sin texto",
+      "Keyboard navigation en componentes interactivos",
+      "Contraste de colores adecuado"
+    ],
+    "seguridad": [
+      "No almacenar secrets en código",
+      "Variables sensibles en .env (nunca en git)",
+      "Validar datos del usuario antes de enviar",
+      "Sanitizar HTML si se renderiza contenido dinámico"
+    ],
+    "mantenibilidad": [
+      "Componentes pequeños y con responsabilidad única",
+      "Nombres descriptivos para componentes y funciones",
+      "Comentarios solo cuando la lógica no es obvia",
+      "Agrupar imports (React, librerías, locales)",
+      "Mantener archivos bajo 300 líneas cuando sea posible"
+    ]
+  }
+}

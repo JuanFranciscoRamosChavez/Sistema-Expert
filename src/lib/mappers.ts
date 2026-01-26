@@ -1,154 +1,130 @@
 import { APIProject, Project } from '@/types';
-import { ProjectStatus, Priority, Viability, ViabilitySemaphores } from '@/lib/mockData';
+import { ProjectStatus, Priority, Viability, ViabilitySemaphores } from '@/types';
 
-export function mapApiToUiProject(apiProject: APIProject): Project {
-  // 1. OBTENER VALORES DE LOS 7 CRITERIOS (Bloque 4)
-	// Usamos 1 como default para no romper el promedio si falta un dato
-	const c1 = Number(apiProject.alineacion_estrategica) || 1;
-	const c2 = Number(apiProject.impacto_social_nivel) || 1;
-	const c3 = Number(apiProject.urgencia) || 1;
-	const c4 = Number(apiProject.viabilidad_ejecucion) || 1;
-	const c5 = Number(apiProject.recursos_disponibles) || 1;
-	const c6 = Number(apiProject.riesgo_nivel) || 1;
-	const c7 = Number(apiProject.dependencias_nivel) || 1;
+/**
+ * MAPPERS.TS - Versión Refactorizada (2026)
+ * Filosofía: Solo transformación de datos. Cero reglas de negocio.
+ * * Cambios realizados:
+ * - Eliminado cálculo de 'puntuacion_final_ponderada' (ahora viene del backend).
+ * - Eliminada lógica de rangos para 'prioridad' (ahora viene del backend).
+ * - Eliminada lógica compleja para 'status' (ahora usamos estatus_general del backend).
+ * - Eliminado conteo manual de semáforos para 'viabilidad' (ahora usamos viabilidad_global).
+ */
 
-	// 2. CALCULAR PROMEDIO PONDERADO
-	// Promedio simple de los 7 factores
-	const sumaPuntaje = c1 + c2 + c3 + c4 + c5 + c6 + c7;
-	const puntajeFinal = sumaPuntaje / 7;
-
-	// 3. DETERMINAR NIVEL DE PRIORIDAD (Tu tabla de rangos)
-	let prioridad: Priority = 'baja';
-	
-	if (puntajeFinal >= 4.5) {
-		prioridad = 'critica'; // 4.5 - 5.0
-	} else if (puntajeFinal >= 3.5) {
-		prioridad = 'muy_alta'; // 3.5 - 4.4
-	} else if (puntajeFinal >= 2.5) {
-		prioridad = 'alta'; // 2.5 - 3.4
-	} else if (puntajeFinal >= 1.5) {
-		prioridad = 'media'; // 1.5 - 2.4
-	} else {
-		prioridad = 'baja'; // 1.0 - 1.4
-	}
-
-  // LÓGICA DE VIABILIDAD Y SEMÁFOROS
-  // Helper para limpiar valores de semáforos
-  const cleanSem = (val?: string): 'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS' => {
-    const v = (val || '').toUpperCase();
-    if (['ROJO', 'AMARILLO', 'VERDE'].includes(v)) return v as any;
-    return 'GRIS'; // Si no hay dato o es inválido, asumimos neutro/gris para no alterar conteo
-  };
-
+export function mapApiToUiProject(api: APIProject): Project {
+  // 1. SEMÁFOROS: Agrupación visual solamente
+  // El backend manda campos planos, nosotros los agrupamos para la UI.
   const semaphores: ViabilitySemaphores = {
-    tecnica: cleanSem(apiProject.viabilidad_tecnica_semaforo),
-    presupuestal: cleanSem(apiProject.viabilidad_presupuestal_semaforo),
-    juridica: cleanSem(apiProject.viabilidad_juridica_semaforo),
-    temporal: cleanSem(apiProject.viabilidad_temporal_semaforo),
-    administrativa: cleanSem(apiProject.viabilidad_administrativa_semaforo),
+    tecnica: cleanSemaphore(api.viabilidad_tecnica_semaforo),
+    presupuestal: cleanSemaphore(api.viabilidad_presupuestal_semaforo),
+    juridica: cleanSemaphore(api.viabilidad_juridica_semaforo),
+    temporal: cleanSemaphore(api.viabilidad_temporal_semaforo),
+    administrativa: cleanSemaphore(api.viabilidad_administrativa_semaforo),
   };
 
-  // Conteo de alertas
-  const reds = Object.values(semaphores).filter(s => s === 'ROJO').length;
-  const yellows = Object.values(semaphores).filter(s => s === 'AMARILLO').length;
+  // 2. PARSEO DE LISTAS (Formateo de texto, aceptable en frontend)
+  const listaRiesgos = parseList(api.problemas_identificados);
+  // Si no hay un campo específico de objetivos, usamos los primeros 3 problemas como placeholder visual
+  const listaObjetivos = listaRiesgos.slice(0, 3); 
 
-  let viabilidad: Viability = 'alta'; // Default: 5 Verdes (o < 2 amarillos y 0 rojos)
-  
-  if (reds >= 1) {
-    viabilidad = 'baja'; // 1 Rojo -> Viabilidad Baja
-  } else if (yellows >= 2) {
-    viabilidad = 'media'; // 2+ Amarillos -> Viabilidad Media
-  }
-  // Si no cae en los anteriores, se mantiene 'alta'
-
-  // Variables auxiliares para código más limpio
-  const avanceFisico = apiProject.avance_fisico_pct || 0;
-  const avanceFinanciero = apiProject.avance_financiero_pct || 0;
-
-  // --- LÓGICA DE ESTATUS JERÁRQUICA (CORREGIDA CON ESCALA INVERSA) ---
-  let status: ProjectStatus = 'planificado';
-
-  // 1. PRIORIDAD MÁXIMA: COMPLETADO
-  // Si el físico es 100%, el proyecto está terminado
-  if (avanceFisico >= 99.9) {
-    status = 'completado';
-  }
-  
-  // 2. PRIORIDAD ALTA: EN RIESGO
-  // ESCALA INVERSA: riesgo_nivel 1-2 = muy alto riesgo, 5 = muy bajo
-  // Si el riesgo es muy alto (1 o 2), se marca como en riesgo
-  else if (c6 <= 2) {
-    status = 'en_riesgo';
-  }
-  
-  // 2B. RIESGO POR VIABILIDAD: Si tiene problemas graves (1 rojo O 2+ amarillos)
-  else if (reds >= 1 || yellows >= 2) {
-    status = 'en_riesgo';
-  }
-  
-  // 3. PRIORIDAD MEDIA: EN EJECUCIÓN
-  // Solo entramos aquí si NO está completado Y NO está en riesgo
-  // Regla: Si hay CUALQUIER movimiento (físico > 0 O financiero > 0)
-  else if (avanceFisico > 0 || avanceFinanciero > 0) {
-    status = 'en_ejecucion';
-  }
-  
-  // 4. RESIDUAL: PLANIFICADO
-  // Si no cumplió ninguna anterior (todo es 0 y riesgo bajo)
-  else {
-    status = 'planificado';
-  }
-
-
-	// 6. RIESGOS (Texto)
-	const listaRiesgos = apiProject.problemas_identificados 
-		? apiProject.problemas_identificados.split(/[|;]+/).map(s => s.trim()).filter(Boolean)
-		: [];
-
-    // Concatenamos las alcaldías para que el detector de zonas funcione con datos reales
+  // 3. UBICACIÓN (Concatenación visual)
   const ubicacionCompleta = [
-      apiProject.alcaldias, 
-      apiProject.ubicacion_especifica
+      api.alcaldias, 
+      api.ubicacion_especifica
   ].filter(Boolean).join(' - ');
 
   return {
-    id: apiProject.id,
-    nombre: apiProject.programa || 'Sin Nombre',
-    programa: apiProject.programa,
-    descripcion: apiProject.impacto_social_desc || apiProject.observaciones || 'Sin descripción.',
-    direccion: apiProject.area_responsable || 'General',
-    area_responsable: apiProject.area_responsable,
-    responsable: apiProject.responsable_operativo || 'No asignado',
-    presupuesto: apiProject.presupuesto_final || 0,
-    ejecutado: apiProject.monto_ejecutado || 0,
-    status, 
-    prioridad,
-    viabilidad,
-    riesgo: c6,
-    fechaInicio: apiProject.fecha_inicio_prog || apiProject.fecha_inicio_real || '',
-    fechaFin: apiProject.fecha_termino_prog || apiProject.fecha_termino_real || '',
-    fecha_inicio_prog: apiProject.fecha_inicio_prog,
-    fecha_termino_prog: apiProject.fecha_termino_prog,
-    fecha_inicio_real: apiProject.fecha_inicio_real,
-    fecha_termino_real: apiProject.fecha_termino_real,
-    duracion_meses: apiProject.duracion_meses,
-    beneficiarios: apiProject.beneficiarios_num || 0,
+    id: api.id,
+    
+    // --- DATOS DIRECTOS (Sin transformación) ---
+    nombre: api.programa || 'Sin Nombre',
+    programa: api.programa,
+    descripcion: api.impacto_social_desc || api.observaciones || 'Sin descripción.',
+    direccion: api.area_responsable || 'General',
+    area_responsable: api.area_responsable,
+    responsable: api.responsable_operativo || 'No asignado',
+    presupuesto: api.presupuesto_final || 0,
+    ejecutado: api.monto_ejecutado || 0,
+    beneficiarios: api.beneficiarios_num || 0,
+    riesgo: api.riesgo_nivel ?? 1, // Valor por defecto visual
+    duracion_meses: api.duracion_meses,
+    alcanceTerritorial: api.alcance_territorial,
+    observaciones: api.observaciones,
+    problema_resuelve: api.problema_resuelve,
+    alcaldias: api.alcaldias,
+    accionesCorrectivas: api.acciones_correctivas,
+    hitos_comunicacionales: api.hitos_comunicacionales,
+    objetivo: api.problema_resuelve || api.solucion_ofrece,
+
+    // --- CAMPOS DE NEGOCIO (Delegados al Backend) ---
+    
+    // Prioridad: Usamos el label calculado por el servidor
+    // Fallback 'baja' solo por seguridad de tipos en caso de error de red
+    prioridad: (api.prioridad_label as Priority) || 'baja',
+    
+    // Puntuación: Directa del servidor, ya calculada
+    puntuacion_final_ponderada: api.puntuacion_final_ponderada ?? 0,
+
+    // Estatus: El backend es la única fuente de la verdad
+    status: normalizeStatus(api.estatus_general),
+
+    // Viabilidad: El backend ya evaluó los semáforos
+    viabilidad: (api.viabilidad_global as Viability) || 'alta',
+
+    // Semáforos agrupados
+    semaphores,
+
+    // --- FECHAS Y AVANCES ---
+    fechaInicio: api.fecha_inicio_prog || api.fecha_inicio_real || '',
+    fechaFin: api.fecha_termino_prog || api.fecha_termino_real || '',
+    fecha_inicio_prog: api.fecha_inicio_prog,
+    fecha_termino_prog: api.fecha_termino_prog,
+    fecha_inicio_real: api.fecha_inicio_real,
+    fecha_termino_real: api.fecha_termino_real,
+    
+    avance: api.avance_fisico_pct || 0,
+    avance_fisico_pct: api.avance_fisico_pct || 0,
+    
+    // --- OTROS ---
     ubicacion: ubicacionCompleta || 'No especificada',
-    ubicacion_especifica: apiProject.ubicacion_especifica,
-    alcanceTerritorial: apiProject.alcance_territorial, 
-    zona: 'multiple',
+    ubicacion_especifica: api.ubicacion_especifica,
+    zona: 'multiple', // Este campo podría venir del backend en el futuro
     riesgos: listaRiesgos,
-    accionesCorrectivas: apiProject.acciones_correctivas,
-    avance: avanceFisico,
-    avance_fisico_pct: avanceFisico,
-    hitos_comunicacionales: apiProject.hitos_comunicacionales,
-    objetivo: apiProject.problema_resuelve || apiProject.solucion_ofrece,
-    puntuacion_final_ponderada: apiProject.puntuacion_final_ponderada,
-    semaphores: semaphores,
-    objetivos: listaRiesgos.slice(0, 3),
-    indicadores: [],
-    observaciones: apiProject.observaciones,
-    problema_resuelve: apiProject.problema_resuelve,
-    alcaldias: apiProject.alcaldias
+    objetivos: listaObjetivos,
+    indicadores: [], // Array vacío por defecto si no viene del API
   };
+}
+
+// --- HELPERS PURAMENTE VISUALES / DE LIMPIEZA ---
+
+function cleanSemaphore(val?: string): 'ROJO' | 'AMARILLO' | 'VERDE' | 'GRIS' {
+  const v = (val || '').toUpperCase().trim();
+  if (['ROJO', 'AMARILLO', 'VERDE'].includes(v)) return v as any;
+  return 'GRIS';
+}
+
+function parseList(text?: string): string[] {
+  if (!text) return [];
+  return text.split(/[|;]+/).map(s => s.trim()).filter(Boolean);
+}
+
+function normalizeStatus(serverStatus?: string): ProjectStatus {
+  if (!serverStatus) return 'planificado';
+  
+  // Normalización simple de strings a las keys del frontend
+  // Mapeamos lo que envíe el backend (keys) a las constantes del UI
+  const map: Record<string, ProjectStatus> = {
+    'planificado': 'planificado',
+    'en_ejecucion': 'en_ejecucion',
+    'en_riesgo': 'en_riesgo',
+    'retrasado': 'retrasado',
+    'completado': 'completado',
+    // Tolerancia a variaciones por si acaso
+    'en ejecucion': 'en_ejecucion',
+    'en riesgo': 'en_riesgo',
+    'terminado': 'completado'
+  };
+  
+  const key = serverStatus.toLowerCase().trim();
+  return map[key] || 'planificado';
 }

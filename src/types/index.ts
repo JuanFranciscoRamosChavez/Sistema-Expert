@@ -7,6 +7,11 @@ export interface APIProject {
 	area_responsable: string;
 	impacto_social_desc: string;
 	observaciones: string;
+
+	puntuacion_final_ponderada: number;
+	prioridad_label: 'critica' | 'muy_alta' | 'alta' | 'media' | 'baja';
+    viabilidad_global: 'alta' | 'media' | 'baja';
+    estatus_general: 'planificado' | 'en_ejecucion' | 'en_riesgo' | 'retrasado' | 'completado';
 	
 	// Campos calculados por backend
 	presupuesto_final: number;
@@ -41,7 +46,6 @@ export interface APIProject {
 	recursos_disponibles?: number;
 	riesgo_nivel?: number;
 	dependencias_nivel?: number;
-	puntuacion_final_ponderada?: number;
 
 	// --- BLOQUE 5: Viabilidad (Semáforos) ---
 	viabilidad_tecnica_semaforo?: string;
@@ -78,7 +82,6 @@ export interface APIProject {
 	acciones_correctivas?: string;
 	unidad_medida?: string;
 	dato_destacable?: string;
-	estatus_general?: string;
 	
 	// BLOQUE 12: Comunicación
 	hitos_comunicacionales?: string;
