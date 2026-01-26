@@ -95,10 +95,10 @@ export function ProjectCard({ project }: ProjectCardProps) {
 							<div className="space-y-1.5">
 								<div className="flex justify-between text-xs">
 									<span className="text-muted-foreground">Avance Físico</span>
-									<span className="font-bold">{project.avance.toFixed(1)}%</span>
-								</div>
-								<Progress 
-									value={project.avance} 
+								<span className="font-bold">{(project.avance || 0).toFixed(1)}%</span>
+							</div>
+							<Progress 
+								value={project.avance || 0} 
 									className="h-2" 
 									indicatorColor={statusColor} 
 								/>

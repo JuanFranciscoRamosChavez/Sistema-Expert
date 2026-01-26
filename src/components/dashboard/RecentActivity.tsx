@@ -1,83 +1,64 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge"; 
-import { CheckCircle2, AlertTriangle, Rocket, TrendingUp, AlertOctagon } from "lucide-react";
-import { Project } from "@/types";
-import { APP_COLORS } from "@/lib/theme";
-import { H3, Subtitle } from "@/components/ui/typography"; // <--- NUEVO IMPORT
+import { RefreshCcw, TrendingUp, Clock } from "lucide-react";
+import { STATUS_COLORS } from "@/lib/theme";
+import { H3, Subtitle } from "@/components/ui/typography";
+import { useRecentActivity } from "@/hooks/useRecentActivity";
+import { formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { Skeleton } from "@/components/ui/skeleton";
 
-interface RecentActivityProps {
-  projects: Project[];
-}
+/**
+ * Componente de Actividad Reciente - Sprint 3 Optimizado
+ * 
+ * Cambios:
+ * - ✅ Usa hook useRecentActivity() con datos reales del backend
+ * - ✅ Elimina lógica de parsing y filtrado en cliente
+ * - ✅ Auto-refresh cada 2 minutos
+ * - ✅ Muestra última actualización real de proyectos
+ * - ✅ Cache inteligente con TanStack Query
+ */
+export function RecentActivity() {
+  const { data, isLoading, error } = useRecentActivity();
 
-export function RecentActivity({ projects }: RecentActivityProps) {
-  
-  const activities = projects.flatMap((p) => {
-    const items = [];
+  if (isLoading) {
+    return (
+      <div className="bg-card rounded-xl border border-border shadow-sm flex flex-col h-full">
+        <div className="p-6 border-b border-border">
+          <Skeleton className="h-6 w-48 mb-2" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="p-6 space-y-4">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="flex gap-4">
+              <Skeleton className="h-9 w-9 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-3 w-2/3" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
-    if (p.status === 'completado') {
-      items.push({
-        id: `comp-${p.id}`,
-        project: p.nombre,
-        action: "Proyecto finalizado exitosamente",
-        time: "Meta cumplida",
-        icon: CheckCircle2,
-        color: APP_COLORS.success,
-        initials: "OK"
-      });
-    }
+  if (error) {
+    return (
+      <div className="bg-card rounded-xl border border-border shadow-sm p-6 h-full flex flex-col items-center justify-center text-center text-muted-foreground">
+        <RefreshCcw className="h-10 w-10 mb-3 opacity-20" />
+        <H3 className="text-base mt-2">Error al cargar actividad</H3>
+        <Subtitle>No se pudo obtener la actividad reciente</Subtitle>
+      </div>
+    );
+  }
 
-    if (p.status === 'en_riesgo' || p.prioridad === 'critica') {
-      items.push({
-        id: `risk-${p.id}`,
-        project: p.nombre,
-        action: "Reporta nivel de riesgo crítico",
-        time: "Requiere atención",
-        icon: AlertTriangle,
-        color: APP_COLORS.danger,
-        initials: "AL"
-      });
-    }
-
-    if (p.avance > 0 && p.avance <= 15 && p.status === 'en_ejecucion') {
-      items.push({
-        id: `start-${p.id}`,
-        project: p.nombre,
-        action: "Ha iniciado operaciones físicas",
-        time: `${p.avance}% Avance`,
-        icon: Rocket,
-        color: APP_COLORS.info,
-        initials: "IN"
-      });
-    }
-
-    if (p.ejecutado > p.presupuesto && p.presupuesto > 0) {
-      items.push({
-        id: `cost-${p.id}`,
-        project: p.nombre,
-        action: "Excede el presupuesto asignado",
-        time: "Revisar financiero",
-        icon: AlertOctagon,
-        color: APP_COLORS.warning,
-        initials: "$$"
-      });
-    }
-
-    return items;
-  });
-
-  const sortedActivities = activities.sort((a, b) => {
-    if (a.initials === "AL") return -1;
-    if (b.initials === "AL") return 1;
-    return 0;
-  }).slice(0, 10);
-
-  if (sortedActivities.length === 0) {
+  if (!data || data.latest_projects.length === 0) {
     return (
       <div className="bg-card rounded-xl border border-border shadow-sm p-6 h-full flex flex-col items-center justify-center text-center text-muted-foreground">
         <TrendingUp className="h-10 w-10 mb-3 opacity-20" />
-        <H3 className="text-base mt-2">Sin novedades recientes</H3>
-        <Subtitle>No hay actividad destacada por el momento.</Subtitle>
+        <H3 className="text-base mt-2">Sin actividad reciente</H3>
+        <Subtitle>No hay proyectos actualizados recientemente</Subtitle>
       </div>
     );
   }
@@ -85,51 +66,74 @@ export function RecentActivity({ projects }: RecentActivityProps) {
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm flex flex-col h-full animate-fade-in delay-300">
       <div className="p-6 border-b border-border">
-        <H3>Novedades y Alertas</H3>
+        <H3>Actividad Reciente</H3>
         <Subtitle>
-          Eventos destacados de la cartera de proyectos
+          {data.summary.updates_24h} actualizaciones en las últimas 24 horas
         </Subtitle>
       </div>
       
       <ScrollArea className="flex-1">
         <div className="p-6 space-y-6">
-          {sortedActivities.map((activity, i) => (
-            <div key={activity.id} className="flex gap-4 group">
-              <div className="relative mt-0.5">
-                <Avatar className="h-9 w-9 border border-border">
-                  <AvatarFallback 
-                    style={{ 
-                      backgroundColor: `${activity.color}15`,
-                      color: activity.color,
-                      fontWeight: 'bold',
-                      fontSize: '10px'
-                    }}
-                  >
-                    {activity.initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div 
-                  className="absolute -bottom-1 -right-1 rounded-full p-0.5 bg-card border border-border"
-                  style={{ color: activity.color }}
-                >
-                  <activity.icon className="h-3 w-3" />
-                </div>
-              </div>
+          {data.latest_projects.map((project) => {
+            // Usar STATUS_COLORS del theme para consistencia
+            const color = STATUS_COLORS[project.status] || STATUS_COLORS.planificado;
+            
+            // Iconos según estado
+            const iconMap = {
+              completado: "✓",
+              en_riesgo: "⚠",
+              en_ejecucion: "▶",
+              planificado: "○"
+            };
+            const initials = iconMap[project.status] || "•";
 
-              <div className="flex-1 space-y-1">
-                <p className="text-sm font-medium leading-none text-foreground line-clamp-2" title={activity.project}>
-                  {activity.project}
-                </p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className={activity.initials === 'AL' ? 'text-destructive font-medium' : ''}>
-                    {activity.action}
-                  </span>
-                  <span>•</span>
-                  <span className="font-mono opacity-80">{activity.time}</span>
+            return (
+              <div key={project.id} className="flex gap-4 group">
+                <div className="relative mt-0.5">
+                  <Avatar className="h-9 w-9 border border-border">
+                    <AvatarFallback 
+                      style={{ 
+                        backgroundColor: `${color}15`,
+                        color: color,
+                        fontWeight: 'bold',
+                        fontSize: '10px'
+                      }}
+                    >
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div 
+                    className="absolute -bottom-1 -right-1 rounded-full p-0.5 bg-card border border-border"
+                    style={{ color }}
+                  >
+                    <Clock className="h-3 w-3" />
+                  </div>
+                </div>
+
+                <div className="flex-1 space-y-1">
+                  <p className="text-sm font-medium leading-none text-foreground line-clamp-2" title={project.programa}>
+                    {project.programa}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{project.area_responsable}</span>
+                    <span>•</span>
+                    <span className="font-mono opacity-80">
+                      {formatDistanceToNow(new Date(project.ultima_actualizacion), {
+                        addSuffix: true,
+                        locale: es
+                      })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-muted-foreground">Avance:</span>
+                    <span className="font-medium" style={{ color }}>
+                      {project.avance_fisico_pct}%
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </ScrollArea>
     </div>

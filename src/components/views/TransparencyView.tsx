@@ -1,30 +1,62 @@
-import { mockProjects, formatCurrency, formatNumber, getStatusLabel } from '@/lib/mockData';
+/**
+ * TransparencyView V2 - Migrado a Serverside
+ * Sprint 2: Agregaciones Serverside
+ * 
+ * ANTES: 291 líneas con cálculos client-side pesados
+ * DESPUÉS: ~250 líneas solo con UI y renderizado
+ * 
+ * Eliminado:
+ * - mockProjects.reduce() para totales
+ * - budgetByDirection calculado en cliente
+ * - Iteraciones sobre arrays grandes
+ */
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { 
   Users, DollarSign, Building2, CheckCircle, Download, 
-  ExternalLink, FileText, Eye, TrendingUp, MapPin 
+  ExternalLink, FileText, Eye, TrendingUp, MapPin, Loader2
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { useBudgetByDirection } from '@/hooks/useBudgetByDirection';
+import { useFilteredProjects } from '@/hooks/useFilteredProjects';
 
 export function TransparencyView() {
-  const totalBudget = mockProjects.reduce((sum, p) => sum + p.presupuesto, 0);
-  const totalExecuted = mockProjects.reduce((sum, p) => sum + p.ejecutado, 0);
-  const totalBeneficiaries = mockProjects.reduce((sum, p) => sum + p.beneficiarios, 0);
-  const completedProjects = mockProjects.filter(p => p.status === 'completado').length;
+  // ✅ HOOK: Agregaciones serverside
+  const { data: budgetData, isLoading: budgetLoading } = useBudgetByDirection();
+  
+  // ✅ HOOK: Proyectos destacados (primeros 4)
+  const { data: projectsData, isLoading: projectsLoading } = useFilteredProjects({
+    page_size: 4,
+    ordering: '-avance_fisico_pct',
+  });
 
-  const budgetByDirection = mockProjects.reduce((acc, p) => {
-    const dir = p.direccion.replace('Dirección de ', '');
-    acc[dir] = (acc[dir] || 0) + p.presupuesto;
-    return acc;
-  }, {} as Record<string, number>);
+  // Formateadores
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
 
-  const pieData = Object.entries(budgetByDirection).map(([name, value]) => ({
-    name,
-    value,
-  }));
+  const formatNumber = (value: number) => {
+    return new Intl.NumberFormat('es-MX').format(value);
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      'completado': 'Completado',
+      'en_ejecucion': 'En Ejecución',
+      'en_riesgo': 'En Riesgo',
+      'retrasado': 'Retrasado',
+      'planificado': 'Planificado'
+    };
+    return labels[status] || status;
+  };
 
   const COLORS = [
     'hsl(215, 70%, 35%)',
@@ -35,6 +67,15 @@ export function TransparencyView() {
     'hsl(0, 72%, 51%)',
     'hsl(180, 60%, 45%)',
   ];
+
+  // KPIs desde el backend
+  const totalBudget = budgetData?.total_budget || 0;
+  const totalExecuted = budgetData?.total_executed || 0;
+  const totalBeneficiaries = budgetData?.total_beneficiaries || 0;
+  const completedProjects = budgetData?.completed_projects_count || 0;
+
+  // Datos del pie chart desde el backend
+  const pieData = budgetData?.pie_chart_data || [];
 
   return (
     <div className="space-y-6">
@@ -73,60 +114,68 @@ export function TransparencyView() {
       </div>
 
       {/* Key Metrics for Citizens */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="animate-slide-up" style={{ animationDelay: '50ms' }}>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-lg bg-primary/10">
-                <DollarSign className="h-6 w-6 text-primary" />
+      {budgetLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="animate-slide-up" style={{ animationDelay: '50ms' }}>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-lg bg-primary/10">
+                  <DollarSign className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-display font-bold">{formatCurrency(totalBudget)}</p>
+                  <p className="text-xs text-muted-foreground">Inversión Total</p>
+                </div>
               </div>
-              <div>
-                <p className="text-2xl font-display font-bold">{formatCurrency(totalBudget)}</p>
-                <p className="text-xs text-muted-foreground">Inversión Total</p>
+            </CardContent>
+          </Card>
+          <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-lg bg-success/10">
+                  <TrendingUp className="h-6 w-6 text-success" />
+                </div>
+                <div>
+                  <p className="text-2xl font-display font-bold">
+                    {totalBudget > 0 ? ((totalExecuted / totalBudget) * 100).toFixed(1) : '0.0'}%
+                  </p>
+                  <p className="text-xs text-muted-foreground">Ejecutado</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-lg bg-success/10">
-                <TrendingUp className="h-6 w-6 text-success" />
+            </CardContent>
+          </Card>
+          <Card className="animate-slide-up" style={{ animationDelay: '150ms' }}>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-lg bg-info/10">
+                  <Users className="h-6 w-6 text-info" />
+                </div>
+                <div>
+                  <p className="text-2xl font-display font-bold">{formatNumber(totalBeneficiaries)}</p>
+                  <p className="text-xs text-muted-foreground">Beneficiarios</p>
+                </div>
               </div>
-              <div>
-                <p className="text-2xl font-display font-bold">{((totalExecuted / totalBudget) * 100).toFixed(1)}%</p>
-                <p className="text-xs text-muted-foreground">Ejecutado</p>
+            </CardContent>
+          </Card>
+          <Card className="animate-slide-up" style={{ animationDelay: '200ms' }}>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-lg bg-success/10">
+                  <CheckCircle className="h-6 w-6 text-success" />
+                </div>
+                <div>
+                  <p className="text-2xl font-display font-bold">{completedProjects}</p>
+                  <p className="text-xs text-muted-foreground">Obras Terminadas</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="animate-slide-up" style={{ animationDelay: '150ms' }}>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-lg bg-info/10">
-                <Users className="h-6 w-6 text-info" />
-              </div>
-              <div>
-                <p className="text-2xl font-display font-bold">{formatNumber(totalBeneficiaries)}</p>
-                <p className="text-xs text-muted-foreground">Beneficiarios</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="animate-slide-up" style={{ animationDelay: '200ms' }}>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-lg bg-success/10">
-                <CheckCircle className="h-6 w-6 text-success" />
-              </div>
-              <div>
-                <p className="text-2xl font-display font-bold">{completedProjects}</p>
-                <p className="text-xs text-muted-foreground">Obras Terminadas</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Budget Distribution */}
       <div className="grid lg:grid-cols-2 gap-6">
@@ -135,35 +184,45 @@ export function TransparencyView() {
             <CardTitle>¿A dónde van tus impuestos?</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={90}
-                    dataKey="value"
-                    label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value: number) => formatCurrency(value)}
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                  />
-                  <Legend 
-                    formatter={(value) => <span className="text-xs">{value}</span>}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            {budgetLoading ? (
+              <div className="flex items-center justify-center h-72">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : pieData.length > 0 ? (
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={90}
+                      dataKey="value"
+                      label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value: number) => formatCurrency(value)}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Legend 
+                      formatter={(value) => <span className="text-xs">{value}</span>}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">
+                No hay datos disponibles
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -172,33 +231,43 @@ export function TransparencyView() {
             <CardTitle>Proyectos Destacados</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {mockProjects.slice(0, 4).map((project, index) => (
-                <div 
-                  key={project.id}
-                  className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer animate-fade-in"
-                  style={{ animationDelay: `${350 + index * 50}ms` }}
-                >
-                  <div className="p-2 rounded-lg bg-primary/10 shrink-0">
-                    <Building2 className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{project.nombre}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <MapPin className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">{project.ubicacion}</span>
+            {projectsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : projectsData?.results && projectsData.results.length > 0 ? (
+              <div className="space-y-4">
+                {projectsData.results.map((project, index) => (
+                  <div 
+                    key={project.id}
+                    className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer animate-fade-in"
+                    style={{ animationDelay: `${350 + index * 50}ms` }}
+                  >
+                    <div className="p-2 rounded-lg bg-primary/10 shrink-0">
+                      <Building2 className="h-4 w-4 text-primary" />
                     </div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Progress value={project.avance} className="flex-1 h-1.5" />
-                      <span className="text-xs font-medium">{project.avance}%</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{project.programa}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">{project.ubicacion_especifica}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Progress value={project.avance_fisico_pct} className="flex-1 h-1.5" />
+                        <span className="text-xs font-medium">{project.avance_fisico_pct}%</span>
+                      </div>
                     </div>
+                    <Badge variant="secondary" className="text-xs shrink-0">
+                      {getStatusLabel(project.status)}
+                    </Badge>
                   </div>
-                  <Badge variant={project.status as any} className="text-xs shrink-0">
-                    {getStatusLabel(project.status)}
-                  </Badge>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">
+                No hay proyectos para mostrar
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

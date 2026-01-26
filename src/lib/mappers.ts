@@ -65,33 +65,36 @@ export function mapApiToUiProject(apiProject: APIProject): Project {
   const avanceFisico = apiProject.avance_fisico_pct || 0;
   const avanceFinanciero = apiProject.avance_financiero_pct || 0;
 
-  // --- LÓGICA DE ESTATUS JERÁRQUICA (CORREGIDA) ---
+  // --- LÓGICA DE ESTATUS JERÁRQUICA (CORREGIDA CON ESCALA INVERSA) ---
   let status: ProjectStatus = 'planificado';
 
   // 1. PRIORIDAD MÁXIMA: COMPLETADO
-  // Si el físico es 100%, el proyecto está terminado. PUNTO.
-  // El 'return' implícito del if/else evita que se evalúe si tiene avance financiero.
+  // Si el físico es 100%, el proyecto está terminado
   if (avanceFisico >= 99.9) {
     status = 'completado';
   }
   
   // 2. PRIORIDAD ALTA: EN RIESGO
-  // Solo entramos aquí si NO está completado (< 99.9%).
-  // Si el riesgo es alto (4 o 5), se marca rojo inmediatamente.
-  else if (c6 > 3) {
+  // ESCALA INVERSA: riesgo_nivel 1-2 = muy alto riesgo, 5 = muy bajo
+  // Si el riesgo es muy alto (1 o 2), se marca como en riesgo
+  else if (c6 <= 2) {
+    status = 'en_riesgo';
+  }
+  
+  // 2B. RIESGO POR VIABILIDAD: Si tiene problemas graves (1 rojo O 2+ amarillos)
+  else if (reds >= 1 || yellows >= 2) {
     status = 'en_riesgo';
   }
   
   // 3. PRIORIDAD MEDIA: EN EJECUCIÓN
-  // Solo entramos aquí si NO está completado Y NO está en riesgo extremo.
-  // Regla: Si hay CUALQUIER movimiento (físico > 0 O financiero > 0).
-  // Al usar 'else if', garantizamos que aquí el físico es menor a 100%.
+  // Solo entramos aquí si NO está completado Y NO está en riesgo
+  // Regla: Si hay CUALQUIER movimiento (físico > 0 O financiero > 0)
   else if (avanceFisico > 0 || avanceFinanciero > 0) {
     status = 'en_ejecucion';
   }
   
   // 4. RESIDUAL: PLANIFICADO
-  // Si no cumplió ninguna anterior (todo es 0 y riesgo bajo).
+  // Si no cumplió ninguna anterior (todo es 0 y riesgo bajo)
   else {
     status = 'planificado';
   }
@@ -111,8 +114,10 @@ export function mapApiToUiProject(apiProject: APIProject): Project {
   return {
     id: apiProject.id,
     nombre: apiProject.programa || 'Sin Nombre',
+    programa: apiProject.programa,
     descripcion: apiProject.impacto_social_desc || apiProject.observaciones || 'Sin descripción.',
     direccion: apiProject.area_responsable || 'General',
+    area_responsable: apiProject.area_responsable,
     responsable: apiProject.responsable_operativo || 'No asignado',
     presupuesto: apiProject.presupuesto_final || 0,
     ejecutado: apiProject.monto_ejecutado || 0,
@@ -129,13 +134,21 @@ export function mapApiToUiProject(apiProject: APIProject): Project {
     duracion_meses: apiProject.duracion_meses,
     beneficiarios: apiProject.beneficiarios_num || 0,
     ubicacion: ubicacionCompleta || 'No especificada',
+    ubicacion_especifica: apiProject.ubicacion_especifica,
     alcanceTerritorial: apiProject.alcance_territorial, 
     zona: 'multiple',
     riesgos: listaRiesgos,
     accionesCorrectivas: apiProject.acciones_correctivas,
     avance: avanceFisico,
+    avance_fisico_pct: avanceFisico,
     hitos_comunicacionales: apiProject.hitos_comunicacionales,
     objetivo: apiProject.problema_resuelve || apiProject.solucion_ofrece,
-    puntuacion_final_ponderada: apiProject.puntuacion_final_ponderada
+    puntuacion_final_ponderada: apiProject.puntuacion_final_ponderada,
+    semaphores: semaphores,
+    objetivos: listaRiesgos.slice(0, 3),
+    indicadores: [],
+    observaciones: apiProject.observaciones,
+    problema_resuelve: apiProject.problema_resuelve,
+    alcaldias: apiProject.alcaldias
   };
 }

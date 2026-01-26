@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Calendar, Clock, CheckCircle, Filter, ChevronLeft, ChevronRight, MapPin, Target, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useMemo } from 'react';
-import { useFilteredProjects, useProjectsByYear, useMilestoneProjects } from '@/hooks/useFilteredProjects';
+import { useDashboardData } from '@/hooks/useDashboardData';
 import type { Project } from '@/types';
 
 const months = [
@@ -15,117 +15,192 @@ const months = [
   'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
 ];
 
-// --- Funciones de Ayuda ---
-const formatDate = (dateStr: string | null | undefined): string => {
-	if (!dateStr) return 'Sin fecha';
-	try {
-		const date = new Date(dateStr);
-		return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
-	} catch {
-		return dateStr;
-	}
-};
+// --- Funciones de Ayuda (Fechas Robustas) ---
+
+function parseFlexibleDate(dateStr: string | null | undefined): Date | null {
+  if (!dateStr || dateStr.trim() === '') return null;
+  
+  try {
+    // 1. Intento ISO directo
+    const isoDate = new Date(dateStr);
+    if (!isNaN(isoDate.getTime())) return isoDate;
+    
+    // 2. Mapeo de meses en español
+    const mesesEs: Record<string, number> = {
+      'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3,
+      'mayo': 4, 'junio': 5, 'julio': 6, 'agosto': 7,
+      'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11,
+      'ene': 0, 'feb': 1, 'mar': 2, 'abr': 3, 'may': 4, 'jun': 5,
+      'jul': 6, 'ago': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dic': 11
+    };
+    
+    const lowerStr = dateStr.toLowerCase();
+
+    // 3. Formato largo: "1 de enero de 2024"
+    const formatoLargoRegex = /(\d{1,2})\s+de\s+([a-z]+)\s+de\s+(\d{4})/;
+    const matchLargo = lowerStr.match(formatoLargoRegex);
+    if (matchLargo) {
+      const [, day, month, year] = matchLargo;
+      if (mesesEs[month] !== undefined) {
+        return new Date(parseInt(year), mesesEs[month], parseInt(day));
+      }
+    }
+    
+    // 4. Formato corto: "Enero 2024" o "Ene 2024"
+    const mesAnioRegex = /([a-z]+)\s+(\d{4})/;
+    const match = lowerStr.match(mesAnioRegex);
+    if (match) {
+      const [, month, year] = match;
+      if (mesesEs[month] !== undefined) {
+        return new Date(parseInt(year), mesesEs[month], 1);
+      }
+    }
+    
+    return null;
+  } catch (e) {
+    console.warn('Error parseando fecha:', dateStr);
+    return null;
+  }
+}
+
+function getEffectiveEndDate(project: Project): Date | null {
+  // Prioridad: Real > Programada > FechaFin genérica
+  const candidates = [
+    project.fecha_termino_real,
+    project.fecha_termino_prog,
+    project.fechaFin
+  ];
+
+  for (const dateStr of candidates) {
+    const parsed = parseFlexibleDate(dateStr);
+    if (parsed) return parsed;
+  }
+  return null;
+}
 
 // --- Componente Principal ---
 
 export function TimelineView() {
-	const currentYear = 2026;
-	const now = new Date();
+  const { projects, loading, error } = useDashboardData();
+  const now = new Date();
+  const currentYear = 2026;
 
-	// Estados de Filtros y Paginación
-	const [timeRange, setTimeRange] = useState<'3' | '6' | '9' | '12+'>('3');
-	const [showFilters, setShowFilters] = useState(false);
-	
-	const [globalAreaFilter, setGlobalAreaFilter] = useState<string>('todos');
-	const [globalStatusFilter, setGlobalStatusFilter] = useState<string>('todos');
-	
-	const [timelineAreaFilter, setTimelineAreaFilter] = useState<string>('todos');
-	const [timelineStatusFilter, setTimelineStatusFilter] = useState<string>('todos');
-	const [itemsPerPage, setItemsPerPage] = useState<string>('5');
-	const [currentPage, setCurrentPage] = useState(1);
-	
-	const [milestoneAreaFilter, setMilestoneAreaFilter] = useState<string>('todos');
-	const [milestoneStatusFilter, setMilestoneStatusFilter] = useState<string>('todos');
-	const [milestoneScoreFilter, setMilestoneScoreFilter] = useState<string>('todos');
-	
-	const [selectedMilestone, setSelectedMilestone] = useState<Project | null>(null);
+  // Estados de Filtros y Paginación
+  const [timeRange, setTimeRange] = useState<'3' | '6' | '9' | '12+'>('3');
+  const [showFilters, setShowFilters] = useState(false);
+  
+  const [globalAreaFilter, setGlobalAreaFilter] = useState<string[]>([]);
+  const [globalStatusFilter, setGlobalStatusFilter] = useState<string>('todos');
+  
+  const [timelineAreaFilter, setTimelineAreaFilter] = useState<string>('todos');
+  const [timelineStatusFilter, setTimelineStatusFilter] = useState<string>('todos');
+  const [itemsPerPage, setItemsPerPage] = useState<string>('5');
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  const [milestoneAreaFilter, setMilestoneAreaFilter] = useState<string>('todos');
+  const [milestoneStatusFilter, setMilestoneStatusFilter] = useState<string>('todos');
+  const [milestoneScoreFilter, setMilestoneScoreFilter] = useState<string>('todos');
+  
+  const [selectedMilestone, setSelectedMilestone] = useState<Project | null>(null);
 
-	// Mapeo de timeRange a días
-	const daysThreshold = useMemo(() => {
-		switch (timeRange) {
-			case '3': return 90;
-			case '6': return 180;
-			case '9': return 270;
-			case '12+': return 9999;
-			default: return 90;
-		}
-	}, [timeRange]);
+  // Áreas únicas (Memoizado)
+  const uniqueAreas = useMemo(() => {
+    const areas = new Set<string>();
+    projects.forEach(p => { if (p.direccion) areas.add(p.direccion); });
+    return Array.from(areas).sort();
+  }, [projects]);
 
-	// ✅ HOOK 1: Próximas entregas (Serverside)
-	const { data: upcomingData, isLoading: upcomingLoading, error: upcomingError } = useFilteredProjects({
-		days_threshold: daysThreshold,
-		status: globalStatusFilter !== 'todos' ? globalStatusFilter : undefined,
-		direccion: globalAreaFilter !== 'todos' ? globalAreaFilter : undefined,
-		ordering: 'fecha_termino_prog',
-		page_size: 'todos'
-	});
+  // --- Lógica 1: Próximas Entregas ---
+  const daysThreshold = useMemo(() => {
+    switch (timeRange) {
+      case '3': return 90;
+      case '6': return 180;
+      case '9': return 270;
+      case '12+': return 9999;
+      default: return 90;
+    }
+  }, [timeRange]);
 
-	// ✅ HOOK 2: Timeline del año (Serverside)
-	const { data: timelineData, isLoading: timelineLoading, error: timelineError } = useProjectsByYear(currentYear, {
-		status: timelineStatusFilter !== 'todos' ? timelineStatusFilter : undefined,
-		direccion: timelineAreaFilter !== 'todos' ? timelineAreaFilter : undefined,
-		page: currentPage,
-		page_size: itemsPerPage === 'todos' ? 9999 : parseInt(itemsPerPage),
-	});
+  const upcomingProjects = useMemo(() => {
+    return projects
+      .filter(p => {
+        if (globalStatusFilter !== 'todos' && p.status !== globalStatusFilter) return false;
+        if (globalAreaFilter.length > 0 && !globalAreaFilter.includes(p.direccion || '')) return false;
+        
+        const endDate = getEffectiveEndDate(p);
+        if (!endDate) return false;
+        
+        const diffDays = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        // Filtrar solo proyectos futuros dentro del rango
+        return diffDays > 0 && diffDays <= daysThreshold;
+      })
+      .sort((a, b) => {
+        const dateA = getEffectiveEndDate(a)?.getTime() || 0;
+        const dateB = getEffectiveEndDate(b)?.getTime() || 0;
+        return dateA - dateB;
+      });
+  }, [projects, globalStatusFilter, globalAreaFilter, daysThreshold]);
 
-	// ✅ HOOK 3: Hitos comunicacionales (Serverside)
-	const scoreRangeMap: Record<string, any> = {
-		'critica': 'critica',
-		'muy_alta': 'muy_alta',
-		'alta': 'alta',
-		'media': 'media',
-		'baja': 'baja',
-		'todos': undefined
-	};
-	
-	const { data: milestonesData, isLoading: milestonesLoading, error: milestonesError } = useMilestoneProjects(
-		scoreRangeMap[milestoneScoreFilter],
-		{
-			direccion: milestoneAreaFilter !== 'todos' ? milestoneAreaFilter : undefined,
-			status: milestoneStatusFilter !== 'todos' ? milestoneStatusFilter : undefined,
-		}
-	);
+  // --- Lógica 2: Línea de Tiempo (Gantt) ---
+  const timelineProjects = useMemo(() => {
+    return projects.filter(p => {
+      if (timelineStatusFilter !== 'todos' && p.status !== timelineStatusFilter) return false;
+      if (timelineAreaFilter !== 'todos' && p.direccion !== timelineAreaFilter) return false;
+      
+      const start = parseFlexibleDate(p.fecha_inicio_prog || p.fechaInicio);
+      const end = getEffectiveEndDate(p);
+      
+      if (!start || !end) return false;
+      // Intersección con el año objetivo
+      return start.getFullYear() <= currentYear && end.getFullYear() >= currentYear;
+    }).sort((a, b) => {
+      const dateA = parseFlexibleDate(a.fecha_inicio_prog || a.fechaInicio)?.getTime() || 0;
+      const dateB = parseFlexibleDate(b.fecha_inicio_prog || b.fechaInicio)?.getTime() || 0;
+      return dateA - dateB;
+    });
+  }, [projects, timelineStatusFilter, timelineAreaFilter, currentYear]);
 
-	// Áreas únicas desde los datos (sin useMemo para evitar loop)
-	const areas = new Set<string>();
-	upcomingData?.results.forEach(p => { if (p.area_responsable) areas.add(p.area_responsable); });
-	timelineData?.results.forEach(p => { if (p.area_responsable) areas.add(p.area_responsable); });
-	milestonesData?.results.forEach(p => { if (p.area_responsable) areas.add(p.area_responsable); });
-	const uniqueAreas = Array.from(areas).sort();
+  const totalPages = itemsPerPage === 'todos' ? 1 : Math.ceil(timelineProjects.length / parseInt(itemsPerPage));
+  const paginatedTimelineProjects = useMemo(() => {
+    if (itemsPerPage === 'todos') return timelineProjects;
+    const start = (currentPage - 1) * parseInt(itemsPerPage);
+    return timelineProjects.slice(start, start + parseInt(itemsPerPage));
+  }, [timelineProjects, itemsPerPage, currentPage]);
 
-	const upcomingProjects = upcomingData?.results || [];
-	const timelineProjects = timelineData?.results || [];
-	const paginatedTimelineProjects = timelineProjects;
-	const filteredMilestones = milestonesData?.results || [];
-	const totalPages = timelineData?.count && itemsPerPage !== 'todos' 
-		? Math.ceil(timelineData.count / parseInt(itemsPerPage)) 
-		: 1;
+  // --- Lógica 3: Hitos Importantes ---
+  const filteredMilestones = useMemo(() => {
+    return projects.filter(p => {
+      if (!p.hitos_comunicacionales || p.hitos_comunicacionales.trim() === '') return false;
+      if (milestoneAreaFilter !== 'todos' && p.direccion !== milestoneAreaFilter) return false;
+      if (milestoneStatusFilter !== 'todos' && p.status !== milestoneStatusFilter) return false;
+      
+      if (milestoneScoreFilter !== 'todos') {
+        const score = p.puntuacion_final_ponderada || 0;
+        switch (milestoneScoreFilter) {
+          case 'critica': return score >= 4.5;
+          case 'muy_alta': return score >= 3.5 && score < 4.5;
+          case 'alta': return score >= 2.5 && score < 3.5;
+          case 'media': return score >= 1.5 && score < 2.5;
+          case 'baja': return score < 1.5;
+          default: return true;
+        }
+      }
+      return true;
+    });
+  }, [projects, milestoneAreaFilter, milestoneStatusFilter, milestoneScoreFilter]);
 
-	const loading = upcomingLoading || timelineLoading || milestonesLoading;
-	const hasError = upcomingError || timelineError || milestonesError;
-
-	if (hasError) {
-		return (
-			<Card className="border-destructive/50 bg-destructive/5">
-				<CardContent className="py-8 text-center text-destructive">
-					<p>Error al cargar los datos del cronograma.</p>
-					<Button variant="outline" onClick={() => window.location.reload()} className="mt-4 border-destructive/50 hover:bg-destructive/10">
-						Reintentar
-					</Button>
-				</CardContent>
-			</Card>
-		);
-	}
+  if (error) {
+    return (
+      <Card className="border-destructive/50 bg-destructive/5">
+        <CardContent className="py-8 text-center text-destructive">
+          <p>Error al cargar los datos del cronograma.</p>
+          <Button variant="outline" onClick={() => window.location.reload()} className="mt-4 border-destructive/50 hover:bg-destructive/10">
+            Reintentar
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -136,11 +211,22 @@ export function TimelineView() {
         <p className="text-muted-foreground mt-1">
           Línea de tiempo y entregas programadas
         </p>
-		</div>
+      </div>
 
-		{!loading && (
-			<>
-				{/* --- SECCIÓN 1: PRÓXIMAS ENTREGAS --- */}
+      {loading && (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <div className="flex flex-col items-center gap-2">
+              <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
+              <p>Cargando información...</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading && !error && (
+        <>
+          {/* --- SECCIÓN 1: PRÓXIMAS ENTREGAS --- */}
           <Card className="animate-slide-up">
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -189,14 +275,23 @@ export function TimelineView() {
                     </Select>
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block text-foreground">Área</label>
-                    <Select value={globalAreaFilter} onValueChange={setGlobalAreaFilter}>
-                      <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos">Todas las Áreas</SelectItem>
-                        {uniqueAreas.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <label className="text-sm font-medium mb-2 block text-foreground">Áreas</label>
+                    <div className="flex flex-wrap gap-2 max-h-[100px] overflow-y-auto p-1">
+                      {uniqueAreas.map(area => (
+                        <button
+                          key={area}
+                          onClick={() => setGlobalAreaFilter(prev => prev.includes(area) ? prev.filter(a => a !== area) : [...prev, area])}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-xs font-medium transition-all border",
+                            globalAreaFilter.includes(area)
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-background text-muted-foreground border-border hover:bg-muted"
+                          )}
+                        >
+                          {area}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -205,10 +300,8 @@ export function TimelineView() {
               {upcomingProjects.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {upcomingProjects.map((project) => {
-                    const endDateStr = project.fecha_termino_real || project.fecha_termino_prog;
-                    const endDate = endDateStr ? new Date(endDateStr) : null;
-                    const now = new Date();
-                    const diffDays = endDate && !isNaN(endDate.getTime()) ? Math.ceil((endDate.getTime() - now.getTime()) / 86400000) : 0;
+                    const endDate = getEffectiveEndDate(project);
+                    const diffDays = endDate ? Math.ceil((endDate.getTime() - now.getTime()) / 86400000) : 0;
                     const urgency = diffDays <= 30 ? 'high' : diffDays <= 60 ? 'medium' : 'low';
                     
                     return (
@@ -232,13 +325,13 @@ export function TimelineView() {
                             {diffDays}d
                           </span>
                         </div>
-                        <h4 className="font-medium text-sm line-clamp-2 mb-1" title={project.programa}>
-                          {project.programa}
+                        <h4 className="font-medium text-sm line-clamp-2 mb-1" title={project.nombre}>
+                          {project.nombre}
                         </h4>
-                        <p className="text-xs text-muted-foreground mb-3 truncate">{project.area_responsable}</p>
+                        <p className="text-xs text-muted-foreground mb-3 truncate">{project.direccion}</p>
                         <div className="flex items-center gap-2">
-                           <Progress value={project.avance_fisico_pct || 0} className="h-1.5 flex-1" />
-                           <span className="text-[10px] font-medium text-muted-foreground">{project.avance_fisico_pct}%</span>
+                           <Progress value={project.avance || 0} className="h-1.5 flex-1" />
+                           <span className="text-[10px] font-medium text-muted-foreground">{project.avance}%</span>
                         </div>
                       </div>
                     );
@@ -306,9 +399,9 @@ export function TimelineView() {
                   
                   <div className="space-y-3">
                     {paginatedTimelineProjects.map(p => {
-                      const start = p.fecha_inicio_prog ? new Date(p.fecha_inicio_prog) : null;
-                      const end = p.fecha_termino_real ? new Date(p.fecha_termino_real) : (p.fecha_termino_prog ? new Date(p.fecha_termino_prog) : null);
-                      if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+                      const start = parseFlexibleDate(p.fecha_inicio_prog || p.fechaInicio);
+                      const end = getEffectiveEndDate(p);
+                      if (!start || !end) return null;
                       
                       const startMonth = start.getFullYear() < currentYear ? 0 : start.getMonth();
                       const endMonth = end.getFullYear() > currentYear ? 11 : end.getMonth();
@@ -327,8 +420,8 @@ export function TimelineView() {
                       return (
                         <div key={p.id} className="flex items-center hover:bg-muted/30 py-1.5 rounded transition-colors">
                           <div className="w-64 shrink-0 px-2 pr-4">
-                            <p className="text-sm font-medium truncate text-foreground" title={p.programa}>{p.programa}</p>
-                            <p className="text-[10px] text-muted-foreground truncate">{p.area_responsable}</p>
+                            <p className="text-sm font-medium truncate text-foreground" title={p.nombre}>{p.nombre}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">{p.direccion}</p>
                           </div>
                           <div className="flex-1 relative h-6">
                             <div className="absolute inset-0 flex">
@@ -348,10 +441,10 @@ export function TimelineView() {
                 </div>
               </div>
               
-              {itemsPerPage !== 'todos' && (timelineData?.count || 0) > 0 && (
+              {itemsPerPage !== 'todos' && timelineProjects.length > 0 && (
                 <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
                   <span className="text-xs text-muted-foreground">
-                    Mostrando {paginatedTimelineProjects.length} de {timelineData?.count || 0}
+                    Mostrando {paginatedTimelineProjects.length} de {timelineProjects.length}
                   </span>
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="icon" className="h-8 w-8" disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))}>
@@ -433,8 +526,8 @@ export function TimelineView() {
                           <div className="border border-border/60 bg-card rounded-lg p-4 hover:shadow-md hover:border-primary/30 transition-all">
                             <div className="flex justify-between items-start gap-2 mb-2">
                               <div className="min-w-0">
-                                <h4 className="text-sm font-semibold line-clamp-1 text-foreground">{project.programa}</h4>
-                                <p className="text-xs text-muted-foreground truncate">{project.area_responsable}</p>
+                                <h4 className="text-sm font-semibold line-clamp-1 text-foreground">{project.nombre}</h4>
+                                <p className="text-xs text-muted-foreground truncate">{project.direccion}</p>
                               </div>
                               <Badge variant="secondary" className="text-[10px] shrink-0 font-normal">
                                 Score: {project.puntuacion_final_ponderada?.toFixed(1) || 'N/A'}
@@ -445,7 +538,7 @@ export function TimelineView() {
                             </p>
                             <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground/70">
                               <MapPin className="h-3 w-3" />
-                              <span className="truncate">{project.ubicacion_especifica || 'Ubicación no especificada'}</span>
+                              <span className="truncate">{project.alcaldias || 'Ubicación no especificada'}</span>
                             </div>
                           </div>
                         </div>
@@ -467,10 +560,10 @@ export function TimelineView() {
               {selectedMilestone && (
                 <>
                   <DialogHeader>
-                    <DialogTitle className="text-lg md:text-xl">{selectedMilestone.programa}</DialogTitle>
+                    <DialogTitle className="text-lg md:text-xl">{selectedMilestone.nombre}</DialogTitle>
                     <DialogDescription className="flex items-center gap-1.5 text-xs md:text-sm">
                       <MapPin className="h-3.5 w-3.5" />
-                      {selectedMilestone.area_responsable} • {selectedMilestone.ubicacion_especifica || "Sin ubicación"}
+                      {selectedMilestone.direccion} • {selectedMilestone.alcaldias || "Sin alcaldía"}
                     </DialogDescription>
                   </DialogHeader>
                   
@@ -515,8 +608,8 @@ export function TimelineView() {
                       <div className="text-right">
                         <span className="text-xs text-muted-foreground">Avance Físico</span>
                         <div className="flex items-center gap-2 justify-end">
-                          <Progress value={selectedMilestone.avance_fisico_pct || 0} className="w-24 h-2" />
-                          <span className="text-sm font-medium text-foreground">{selectedMilestone.avance_fisico_pct || 0}%</span>
+                          <Progress value={selectedMilestone.avance || 0} className="w-24 h-2" />
+                          <span className="text-sm font-medium text-foreground">{selectedMilestone.avance || 0}%</span>
                         </div>
                       </div>
                     </div>

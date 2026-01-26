@@ -1,0 +1,526 @@
+{
+  "arquitectura_backend": {
+    "descripcion": "Sistema de gestión de Obras Públicas - Plan Operativo Anual 2026",
+    "tecnologias": {
+      "framework": "Django 6.0.1",
+      "api": "Django REST Framework",
+      "base_datos": "SQLite3",
+      "lenguaje": "Python 3.x"
+    },
+    "estructura_archivos": {
+      "models.py": {
+        "descripcion": "Define la estructura de la tabla Obra en la base de datos",
+        "ubicacion": "backend/poa/models.py",
+        "responsabilidad": "Esquema de datos (ORM)"
+      },
+      "serializers.py": {
+        "descripcion": "Convierte datos de DB a JSON y calcula campos adicionales",
+        "ubicacion": "backend/poa/serializers.py",
+        "responsabilidad": "Transformación de datos"
+      },
+      "views.py": {
+        "descripcion": "Define los endpoints HTTP que consume el frontend",
+        "ubicacion": "backend/poa/views.py",
+        "responsabilidad": "Lógica de negocio y endpoints"
+      },
+      "services.py": {
+        "descripcion": "Lógica de negocio compleja (análisis territorial, cálculos)",
+        "ubicacion": "backend/poa/services.py",
+        "responsabilidad": "Servicios y utilidades"
+      },
+      "urls.py": {
+        "descripcion": "Mapea URLs a vistas (routing)",
+        "ubicacion": "backend/poa/urls.py",
+        "responsabilidad": "Enrutamiento de API"
+      },
+      "settings.py": {
+        "descripcion": "Configuración global de Django",
+        "ubicacion": "backend/core/settings.py",
+        "responsabilidad": "Configuración"
+      }
+    }
+  },
+  "modelo_datos": {
+    "tabla": "Obra",
+    "bloques": {
+      "bloque_1": {
+        "nombre": "Identificación",
+        "campos": [
+          {"campo": "id_excel", "tipo": "IntegerField", "descripcion": "ID del Excel original"},
+          {"campo": "programa", "tipo": "TextField", "descripcion": "Nombre del programa/proyecto"},
+          {"campo": "area_responsable", "tipo": "CharField", "descripcion": "Área o dirección responsable"},
+          {"campo": "eje_institucional", "tipo": "CharField", "descripcion": "Eje estratégico"}
+        ]
+      },
+      "bloque_2": {
+        "nombre": "Presupuesto y Metas",
+        "campos": [
+          {"campo": "presupuesto_modificado", "tipo": "FloatField", "descripcion": "Presupuesto modificado (prioridad)"},
+          {"campo": "anteproyecto_total", "tipo": "FloatField", "descripcion": "Presupuesto inicial"},
+          {"campo": "meta_2025", "tipo": "FloatField", "descripcion": "Meta año 2025"},
+          {"campo": "meta_2026", "tipo": "FloatField", "descripcion": "Meta año 2026"},
+          {"campo": "tipo_recurso", "tipo": "CharField", "descripcion": "Tipo de recurso financiero"},
+          {"campo": "capitulo_gasto", "tipo": "CharField", "descripcion": "Capítulo presupuestal"}
+        ],
+        "regla_negocio": "Si presupuesto_modificado > 0, usar ese valor. Si no, usar anteproyecto_total"
+      },
+      "bloque_3": {
+        "nombre": "Categorización",
+        "campos": [
+          {"campo": "tipo_obra", "tipo": "CharField", "descripcion": "Tipo de obra (nueva, rehabilitación, etc)"},
+          {"campo": "alcance_territorial", "tipo": "TextField", "descripcion": "Alcance geográfico"},
+          {"campo": "fuente_financiamiento", "tipo": "CharField", "descripcion": "Fuente de recursos"},
+          {"campo": "complejidad_tecnica", "tipo": "IntegerField", "descripcion": "Escala 1-5"},
+          {"campo": "impacto_social_desc", "tipo": "TextField", "descripcion": "Descripción de impacto"}
+        ]
+      },
+      "bloque_4": {
+        "nombre": "Priorización Estratégica",
+        "descripcion": "7 criterios de evaluación (escala 1-5)",
+        "campos": [
+          {"campo": "alineacion_estrategica", "tipo": "IntegerField", "escala": "1-5", "descripcion": "Alineación con objetivos"},
+          {"campo": "impacto_social_nivel", "tipo": "IntegerField", "escala": "1-5", "descripcion": "Impacto en población"},
+          {"campo": "urgencia", "tipo": "IntegerField", "escala": "1-5", "descripcion": "Nivel de urgencia"},
+          {"campo": "viabilidad_ejecucion", "tipo": "IntegerField", "escala": "1-5", "descripcion": "Factibilidad de ejecución"},
+          {"campo": "recursos_disponibles", "tipo": "IntegerField", "escala": "1-5", "descripcion": "Disponibilidad de recursos"},
+          {"campo": "riesgo_nivel", "tipo": "IntegerField", "escala": "1-5", "descripcion": "Nivel de riesgo"},
+          {"campo": "dependencias_nivel", "tipo": "IntegerField", "escala": "1-5", "descripcion": "Dependencias externas"}
+        ],
+        "campo_calculado": {
+          "campo": "puntuacion_final_ponderada",
+          "formula": "(c1 + c2 + c3 + c4 + c5 + c6 + c7) / 7",
+          "rangos_prioridad": {
+            "critica": "4.5 - 5.0",
+            "muy_alta": "3.5 - 4.4",
+            "alta": "2.5 - 3.4",
+            "media": "1.5 - 2.4",
+            "baja": "1.0 - 1.4"
+          }
+        }
+      },
+      "bloque_5": {
+        "nombre": "Viabilidad (Semáforos)",
+        "descripcion": "5 semáforos de viabilidad",
+        "campos": [
+          {"campo": "viabilidad_tecnica_semaforo", "valores": ["ROJO", "AMARILLO", "VERDE", "GRIS"]},
+          {"campo": "viabilidad_presupuestal_semaforo", "valores": ["ROJO", "AMARILLO", "VERDE", "GRIS"]},
+          {"campo": "viabilidad_juridica_semaforo", "valores": ["ROJO", "AMARILLO", "VERDE", "GRIS"]},
+          {"campo": "viabilidad_temporal_semaforo", "valores": ["ROJO", "AMARILLO", "VERDE", "GRIS"]},
+          {"campo": "viabilidad_administrativa_semaforo", "valores": ["ROJO", "AMARILLO", "VERDE", "GRIS"]}
+        ]
+      },
+      "bloque_6": {
+        "nombre": "Ubicación e Impacto",
+        "campos": [
+          {"campo": "alcaldias", "tipo": "TextField", "descripcion": "Alcaldías involucradas"},
+          {"campo": "ubicacion_especifica", "tipo": "TextField", "descripcion": "Ubicación detallada"},
+          {"campo": "beneficiarios_num", "tipo": "BigIntegerField", "descripcion": "Número de beneficiarios (limpio)"},
+          {"campo": "poblacion_objetivo_num", "tipo": "CharField", "descripcion": "Población objetivo"}
+        ]
+      },
+      "bloque_7": {
+        "nombre": "Cronograma",
+        "campos": [
+          {"campo": "fecha_inicio_prog", "tipo": "DateField", "descripcion": "Fecha inicio programada"},
+          {"campo": "fecha_termino_prog", "tipo": "DateField", "descripcion": "Fecha fin programada"},
+          {"campo": "fecha_inicio_real", "tipo": "DateField", "descripcion": "Fecha inicio real"},
+          {"campo": "fecha_termino_real", "tipo": "DateField", "descripcion": "Fecha fin real"},
+          {"campo": "duracion_meses", "tipo": "CharField", "descripcion": "Duración estimada"}
+        ]
+      },
+      "bloque_8": {
+        "nombre": "Monitoreo de Avance",
+        "campos": [
+          {"campo": "avance_fisico_pct", "tipo": "FloatField", "descripcion": "% avance físico (0-100)"},
+          {"campo": "avance_financiero_pct", "tipo": "FloatField", "descripcion": "% avance financiero (0-100)"},
+          {"campo": "estatus_general", "tipo": "CharField", "descripcion": "Estado general del proyecto"}
+        ]
+      },
+      "bloque_9": {
+        "nombre": "Permisos y Autorizaciones",
+        "campos": [
+          {"campo": "permisos_requeridos", "tipo": "TextField"},
+          {"campo": "estatus_permisos", "tipo": "TextField"},
+          {"campo": "requisitos_especificos", "tipo": "TextField"}
+        ]
+      },
+      "bloque_10": {
+        "nombre": "Responsables",
+        "campos": [
+          {"campo": "responsable_operativo", "tipo": "CharField", "descripcion": "Responsable del proyecto"},
+          {"campo": "contratista", "tipo": "CharField", "descripcion": "Empresa contratista"}
+        ]
+      },
+      "bloque_11": {
+        "nombre": "Seguimiento",
+        "campos": [
+          {"campo": "observaciones", "tipo": "TextField", "descripcion": "Observaciones generales"},
+          {"campo": "problemas_identificados", "tipo": "TextField", "descripcion": "Riesgos y problemas"},
+          {"campo": "acciones_correctivas", "tipo": "TextField", "descripcion": "Acciones tomadas"},
+          {"campo": "ultima_actualizacion", "tipo": "DateField", "descripcion": "Última modificación"}
+        ]
+      },
+      "bloque_12": {
+        "nombre": "Comunicación",
+        "campos": [
+          {"campo": "problema_resuelve", "tipo": "TextField", "descripcion": "Problema que resuelve"},
+          {"campo": "solucion_ofrece", "tipo": "TextField", "descripcion": "Solución ofrecida"},
+          {"campo": "beneficio_ciudadania", "tipo": "TextField", "descripcion": "Beneficio para ciudadanos"},
+          {"campo": "hitos_comunicacionales", "tipo": "TextField", "descripcion": "Hitos importantes"},
+          {"campo": "mensajes_clave", "tipo": "TextField", "descripcion": "Mensajes de comunicación"},
+          {"campo": "estrategia_comunicacion", "tipo": "TextField", "descripcion": "Estrategia de difusión"}
+        ]
+      }
+    }
+  },
+  "serializers": {
+    "clase": "ObraSerializer",
+    "campos_calculados": {
+      "semaforo": {
+        "descripcion": "Semáforo general del proyecto",
+        "logica": {
+          "ROJO": [
+            "riesgo_nivel >= 4",
+            "avance_fisico_pct < 20 AND urgencia >= 4",
+            "cualquier semáforo específico en ROJO"
+          ],
+          "AMARILLO": [
+            "riesgo_nivel == 3"
+          ],
+          "VERDE": [
+            "otros casos"
+          ]
+        }
+      },
+      "presupuesto_final": {
+        "descripcion": "Presupuesto a usar en cálculos",
+        "formula": "presupuesto_modificado si > 0, sino anteproyecto_total"
+      },
+      "monto_ejecutado": {
+        "descripcion": "Dinero gastado hasta ahora",
+        "formula": "presupuesto_final × (avance_financiero_pct / 100)"
+      },
+      "conversion_escalas": {
+        "descripcion": "Convierte números a texto descriptivo",
+        "mapeo": {
+          "1": "1 - Muy Bajo",
+          "2": "2 - Bajo",
+          "3": "3 - Regular",
+          "4": "4 - Alto",
+          "5": "5 - Muy Alto"
+        },
+        "aplica_a": ["urgencia", "impacto_social_nivel", "alineacion_estrategica", "complejidad_tecnica", "riesgo_nivel"]
+      }
+    }
+  },
+  "endpoints": {
+    "base_url": "http://localhost:8000/api",
+    "lista_endpoints": [
+      {
+        "ruta": "/dashboard/resumen/",
+        "metodo": "GET",
+        "descripcion": "KPIs básicos del dashboard (legacy)",
+        "response_estructura": {
+          "kpi_tarjetas": {
+            "total_proyectos": "number",
+            "presupuesto_total": "number",
+            "beneficiarios": "number",
+            "atencion_requerida": "number",
+            "en_ejecucion": "number"
+          }
+        },
+        "calculo_atencion_requerida": [
+          "riesgo_nivel >= 4",
+          "O cualquier semáforo en ROJO",
+          "O urgencia >= 4 con avance < 20%"
+        ]
+      },
+      {
+        "ruta": "/v2/dashboard/kpis/",
+        "metodo": "GET",
+        "descripcion": "KPIs dinámicos completos (ACTUAL)",
+        "importante": "Este es el endpoint que usa DashboardView.tsx",
+        "response_estructura": {
+          "projects": {
+            "total": "number - Total de proyectos",
+            "active": "number - Proyectos activos",
+            "completed": "number - Proyectos completados"
+          },
+          "zones": {
+            "total": "number - Número de zonas cubiertas",
+            "label": "string - Texto descriptivo",
+            "list": "array - Lista de nombres de zonas"
+          },
+          "budget": {
+            "total": "number - Presupuesto total",
+            "executed": "number - Presupuesto ejecutado",
+            "remaining": "number - Presupuesto restante",
+            "execution_rate": "number - % de ejecución",
+            "formatted_total": "string - Total formateado con $",
+            "formatted_executed": "string - Ejecutado formateado"
+          },
+          "progress": {
+            "average": "number - Avance promedio %",
+            "label": "string - Texto descriptivo"
+          },
+          "by_status": "array - Conteo por estado",
+          "timestamp": "string - Marca de tiempo ISO"
+        }
+      },
+      {
+        "ruta": "/v2/dashboard/territorial/",
+        "metodo": "GET",
+        "descripcion": "Análisis territorial (zonas y alcaldías)",
+        "query_params": {
+          "version": "v1|v2 - v2 es 83% más rápido (SQL optimizado)"
+        },
+        "response_estructura": {
+          "pie_chart_data": [
+            {
+              "name": "string - Nombre de zona",
+              "value": "number - Presupuesto asignado"
+            }
+          ],
+          "bar_chart_data": [
+            {
+              "name": "string - Nombre corto",
+              "fullName": "string - Nombre completo",
+              "proyectos": "number - Cantidad de proyectos",
+              "beneficiarios": "number - Personas beneficiadas"
+            }
+          ],
+          "_meta": {
+            "version": "string",
+            "total_projects": "number"
+          }
+        }
+      },
+      {
+        "ruta": "/v2/obras/filtered/",
+        "metodo": "GET",
+        "descripcion": "Filtrado avanzado de obras con paginación",
+        "query_params": {
+          "status": "string - Estado (en_ejecucion, completado, etc)",
+          "direccion": "string - Área responsable",
+          "days_threshold": "number - Días para entregas próximas (30, 60, 90, 9999=todos)",
+          "year": "number - Año de ejecución (2026)",
+          "has_milestones": "boolean - Con hitos comunicacionales",
+          "score_range": "string - Rango de prioridad (critica, muy_alta, alta, media, baja)",
+          "page": "number - Número de página",
+          "page_size": "number|'todos' - Resultados por página"
+        },
+        "response_estructura": {
+          "count": "number - Total de resultados",
+          "next": "string|null - URL siguiente página",
+          "previous": "string|null - URL página anterior",
+          "results": "array - Lista de obras",
+          "_meta": {
+            "total_count": "number",
+            "filters_applied": "object - Filtros activos",
+            "timestamp": "string"
+          }
+        }
+      },
+      {
+        "ruta": "/v2/dashboard/critical-projects/",
+        "metodo": "GET",
+        "descripcion": "Top 10 proyectos críticos",
+        "criterios_ordenamiento": [
+          "1. Semáforo ROJO primero",
+          "2. Mayor nivel de riesgo",
+          "3. Mayor puntuación de priorización"
+        ]
+      },
+      {
+        "ruta": "/v2/dashboard/budget-by-direction/",
+        "metodo": "GET",
+        "descripcion": "Presupuesto agrupado por dirección"
+      },
+      {
+        "ruta": "/v2/dashboard/recent-activity/",
+        "metodo": "GET",
+        "descripcion": "Actividad reciente (actualizaciones)"
+      },
+      {
+        "ruta": "/v2/dashboard/risk-analysis/",
+        "metodo": "GET",
+        "descripcion": "Análisis de riesgos por categorías",
+        "response_estructura": {
+          "by_level": "array - Conteo por nivel de riesgo",
+          "by_semaphore": "array - Estado de semáforos por tipo",
+          "critical_projects": "array - Proyectos en riesgo crítico",
+          "recommendations": "array - Recomendaciones"
+        }
+      },
+      {
+        "ruta": "/v2/dashboard/territories/",
+        "metodo": "GET",
+        "descripcion": "Agregaciones territoriales"
+      }
+    ]
+  },
+  "servicios": {
+    "analisis_territorial": {
+      "funcion": "calculate_territorial_stats()",
+      "descripcion": "Calcula estadísticas por zona geográfica",
+      "zona_mapping": {
+        "Zona Norte": ["Gustavo A. Madero", "Azcapotzalco", "Tláhuac", "Milpa Alta"],
+        "Zona Sur": ["Coyoacán", "Tlalpan", "Xochimilco", "La Magdalena Contreras"],
+        "Centro Histórico": ["Cuauhtémoc", "Benito Juárez"],
+        "Zona Oriente": ["Iztapalapa", "Iztacalco", "Venustiano Carranza"],
+        "Zona Poniente": ["Miguel Hidalgo", "Cuajimalpa de Morelos", "Álvaro Obregón"]
+      },
+      "keywords_ciudad_completa": ["todas", "16 alcaldias", "ciudad completa"],
+      "algoritmo": {
+        "paso_1": "Normalizar texto (quitar acentos, minúsculas)",
+        "paso_2": "Detectar si es proyecto ciudad completa",
+        "paso_3": "Identificar alcaldías mencionadas",
+        "paso_4": "Mapear alcaldías a zonas",
+        "paso_5": "Prorratear presupuesto/beneficiarios si aplica a múltiples zonas",
+        "paso_6": "Acumular en cada zona",
+        "paso_7": "Formatear para gráficas"
+      },
+      "prorrateo": {
+        "descripcion": "Divide valores entre zonas involucradas",
+        "formula": "valor_total / cantidad_zonas",
+        "ejemplo": "Si un proyecto cubre 2 zonas con presupuesto $1,000,000: cada zona recibe $500,000"
+      }
+    },
+    "normalizacion_texto": {
+      "funcion": "normalize_text()",
+      "descripcion": "Limpia texto para comparaciones",
+      "transformaciones": [
+        "Convierte a minúsculas",
+        "Quita acentos (NFD normalization)",
+        "Quita caracteres especiales"
+      ],
+      "ejemplo": "Álvaro Obregón → alvaro obregon"
+    }
+  },
+  "reglas_negocio": {
+    "presupuesto": {
+      "prioridad": "presupuesto_modificado > 0 ? presupuesto_modificado : anteproyecto_total",
+      "calculo_ejecutado": "presupuesto_final × (avance_financiero_pct / 100)"
+    },
+    "semaforo_general": {
+      "rojo": [
+        "riesgo_nivel >= 4",
+        "avance_fisico < 20% AND urgencia >= 4",
+        "cualquier semáforo operativo en ROJO"
+      ],
+      "amarillo": ["riesgo_nivel == 3"],
+      "verde": ["otros casos"]
+    },
+    "proyectos_criticos": {
+      "criterios": [
+        "Semáforo en ROJO",
+        "Nivel de riesgo alto (4-5)",
+        "Alta puntuación de priorización",
+        "Bajo avance con alta urgencia"
+      ]
+    },
+    "viabilidad": {
+      "baja": "1 o más semáforos en ROJO",
+      "media": "2 o más semáforos en AMARILLO",
+      "alta": "otros casos"
+    }
+  },
+  "optimizaciones": {
+    "v2_territorial": {
+      "descripcion": "Versión SQL-optimizada de análisis territorial",
+      "mejora": "83% más rápido (800ms → 120ms)",
+      "tecnica": "Agregaciones SQL nativas con Django ORM",
+      "uso": "?version=v2 en query params"
+    },
+    "paginacion": {
+      "descripcion": "Paginación estándar para endpoints",
+      "config": {
+        "page_size_default": 10,
+        "page_size_max": 100,
+        "page_size_param": "page_size",
+        "sin_paginacion": "page_size=todos"
+      }
+    },
+    "indices_db": {
+      "recomendados": [
+        "fecha_termino_prog",
+        "estatus_general",
+        "area_responsable",
+        "riesgo_nivel",
+        "avance_fisico_pct"
+      ]
+    }
+  },
+  "comandos_desarrollo": {
+    "iniciar_servidor": "python manage.py runserver",
+    "crear_migraciones": "python manage.py makemigrations",
+    "aplicar_migraciones": "python manage.py migrate",
+    "shell_interactivo": "python manage.py shell",
+    "crear_superusuario": "python manage.py createsuperuser",
+    "cargar_datos": "python generar.py"
+  },
+  "flujo_datos": {
+    "pasos": [
+      "1. Excel con datos de obras",
+      "2. generar.py lee Excel y limpia datos",
+      "3. Se inserta en SQLite (db.sqlite3)",
+      "4. models.py define estructura ORM",
+      "5. serializers.py transforma a JSON",
+      "6. views.py expone endpoints HTTP",
+      "7. urls.py enruta peticiones",
+      "8. Frontend React consume API",
+      "9. Componentes visualizan datos"
+    ]
+  },
+  "modificaciones_comunes": {
+    "agregar_campo_db": {
+      "pasos": [
+        "1. Agregar campo en models.py",
+        "2. Ejecutar: python manage.py makemigrations",
+        "3. Ejecutar: python manage.py migrate",
+        "4. Actualizar serializer si es necesario"
+      ],
+      "ejemplo": "nuevo_campo = models.CharField(max_length=255, null=True)"
+    },
+    "crear_endpoint": {
+      "pasos": [
+        "1. Crear clase APIView en views.py",
+        "2. Definir método get() o post()",
+        "3. Agregar ruta en urls.py",
+        "4. Probar con navegador o curl"
+      ]
+    },
+    "modificar_kpis": {
+      "archivo": "views.py",
+      "clase": "DynamicKPIsView",
+      "metodo": "get()",
+      "recomendacion": "Usar agregaciones Django para eficiencia"
+    },
+    "cambiar_logica_semaforo": {
+      "archivo": "serializers.py",
+      "clase": "ObraSerializer",
+      "metodo": "get_semaforo()"
+    }
+  },
+  "testing": {
+    "endpoints_test": [
+      "http://localhost:8000/api/v2/dashboard/kpis/",
+      "http://localhost:8000/api/v2/dashboard/territorial/",
+      "http://localhost:8000/api/v2/obras/filtered/?status=en_ejecucion"
+    ],
+    "herramientas": [
+      "curl - Terminal",
+      "Postman - GUI",
+      "Django REST Framework Browsable API",
+      "Python requests library"
+    ]
+  },
+  "cors_configuracion": {
+    "descripcion": "Permite peticiones desde React (puerto diferente)",
+    "archivo": "settings.py",
+    "config": {
+      "CORS_ALLOWED_ORIGINS": ["http://localhost:8080"],
+      "alternativa_desarrollo": "CORS_ALLOW_ALL_ORIGINS = True (solo dev)"
+    }
+  }
+}

@@ -12,27 +12,34 @@ import { AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Project } from "@/types";
 import { cn } from "@/lib/utils";
 import { APP_COLORS, PRIORITY_COLORS } from "@/lib/theme"; 
-import { H3, Subtitle } from "@/components/ui/typography"; // <--- NUEVO IMPORT
+import { H3, Subtitle } from "@/components/ui/typography";
+import { useCriticalProjects } from "@/hooks/useCriticalProjects";
 
-interface Props {
-  projects: Project[];
-}
+/**
+ * CriticalProjectsTable - Sprint 3 con lógica multi-criterio
+ * Usa useCriticalProjects() que aplica:
+ * 1. puntuacion >= 2.5 AND (1+ rojos OR 2+ amarillos)
+ * 2. riesgo_nivel <= 2 (escala inversa)
+ * 3. dependencias_nivel <= 2 (escala inversa)
+ * 4. 1+ rojos OR 2+ amarillos (cualquier problema)
+ */
+export function CriticalProjectsTable() {
+  // Obtener top 5 proyectos críticos del backend
+  const { data: criticalProjects = [], isLoading } = useCriticalProjects(5);
 
-export function CriticalProjectsTable({ projects }: Props) {
-  
-  const criticalProjects = projects
-    .filter(p => 
-      p.status === 'en_riesgo' || 
-      p.prioridad === 'critica' || 
-      p.prioridad === 'alta' ||
-      p.viabilidad === 'baja'
-    )
-    .sort((a, b) => {
-      const scoreA = (a.prioridad === 'critica' ? 3 : 0) + (a.status === 'en_riesgo' ? 2 : 0);
-      const scoreB = (b.prioridad === 'critica' ? 3 : 0) + (b.status === 'en_riesgo' ? 2 : 0);
-      return scoreB - scoreA;
-    })
-    .slice(0, 5);
+  if (isLoading) {
+    return (
+      <div className="bg-card rounded-xl border border-border shadow-sm p-6">
+        <div className="h-6 w-48 bg-muted animate-pulse rounded mb-2" />
+        <div className="h-4 w-64 bg-muted animate-pulse rounded mb-4" />
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-16 w-full bg-muted animate-pulse rounded" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const getRiskColor = (project: Project) => {
     if (project.status === 'en_riesgo' || project.viabilidad === 'baja') {

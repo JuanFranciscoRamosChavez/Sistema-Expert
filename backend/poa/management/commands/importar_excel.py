@@ -45,34 +45,65 @@ class Command(BaseCommand):
 			return str(val).strip() if pd.notna(val) else None
 
 		def parse_date(val):
+			"""
+			Normaliza fechas al formato ISO 8601 (YYYY-MM-DD).
+			Soporta múltiples formatos de entrada y devuelve date object.
+			
+			Formatos soportados:
+			- Seriales de Excel (int/float)
+			- "abril 2026", "mayo 2026" (mes y año en español)
+			- "28 de noviembre de 2025" (fecha completa en español)
+			- "31/12/2025", "31-12-2025" (DD/MM/YYYY o DD-MM-YYYY)
+			- "2025-12-31", "2025/12/31" (ISO 8601 y variantes)
+			- Timestamps y datetime objects de pandas
+			
+			Returns:
+				date object o None si no se puede parsear
+			"""
 			try:
-				if pd.isna(val) or val == '': return None
+				if pd.isna(val) or val == '': 
+					return None
 				
-				# Manejo de fecha serial de Excel (enteros/floats)
-				if isinstance(val, (int, float)):
+				# 1. Manejo de fecha serial de Excel (enteros/floats)
+				if isinstance(val, (int, float)) and not isinstance(val, bool):
 					return (datetime(1899, 12, 30) + timedelta(days=val)).date()
 				
-				# Convertir a string para análisis de texto
+				# 2. Si ya es un objeto date o datetime, extraer date
+				if isinstance(val, datetime):
+					return val.date()
+				if hasattr(val, 'date'):  # pandas Timestamp
+					return val.date()
+				
+				# 3. Convertir a string para análisis de texto
 				val_str = str(val).strip()
 				
-				# Meses en español
+				# 4. Meses en español (diccionario)
 				meses = {
 					'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4,
 					'mayo': 5, 'junio': 6, 'julio': 7, 'agosto': 8,
 					'septiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12
 				}
 				
-				# Formato: "abril 2026", "mayo 2026" (solo mes y año)
 				import re
-				match_mes_anio = re.match(r'(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(\d{4})', val_str, re.IGNORECASE)
+				
+				# 5. Formato: "abril 2026", "mayo 2026" (solo mes y año en español)
+				match_mes_anio = re.match(
+					r'(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(\d{4})', 
+					val_str, 
+					re.IGNORECASE
+				)
 				if match_mes_anio:
 					mes_nombre = match_mes_anio.group(1).lower()
 					anio = int(match_mes_anio.group(2))
 					mes = meses[mes_nombre]
 					return datetime(anio, mes, 1).date()  # Día 1 del mes
 				
-				# Formato: "28 de noviembre de 2025" (día completo)
-				match_completo = re.match(r'(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+de\s+(\d{4})', val_str, re.IGNORECASE)
+				# 6. Formato: "28 de noviembre de 2025" (fecha completa en español)
+				match_completo = re.match(
+					r'(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+de\s+(\d{4})', 
+					val_str, 
+					re.IGNORECASE
+				)
 				if match_completo:
 					dia = int(match_completo.group(1))
 					mes_nombre = match_completo.group(2).lower()
@@ -80,10 +111,39 @@ class Command(BaseCommand):
 					mes = meses[mes_nombre]
 					return datetime(anio, mes, dia).date()
 				
-				# Fallback: intentar parsing automático de pandas
-				return pd.to_datetime(val).date()
+				# 7. Formato ISO ya normalizado: "2025-12-31"
+				if re.match(r'^\d{4}-\d{2}-\d{2}$', val_str):
+					return datetime.strptime(val_str, "%Y-%m-%d").date()
+				
+				# 8. Formatos DD/MM/YYYY o DD-MM-YYYY
+				for sep in ['/', '-']:
+					pattern = rf'^\d{{1,2}}\{sep}\d{{1,2}}\{sep}\d{{4}}$'
+					if re.match(pattern, val_str):
+						try:
+							return datetime.strptime(val_str, f"%d{sep}%m{sep}%Y").date()
+						except ValueError:
+							pass
+				
+				# 9. Formatos YYYY/MM/DD o YYYY-MM-DD (variantes)
+				for sep in ['/', '-']:
+					pattern = rf'^\d{{4}}\{sep}\d{{1,2}}\{sep}\d{{1,2}}$'
+					if re.match(pattern, val_str):
+						try:
+							return datetime.strptime(val_str, f"%Y{sep}%m{sep}%d").date()
+						except ValueError:
+							pass
+				
+				# 10. Fallback: intentar parsing automático de pandas
+				parsed = pd.to_datetime(val, errors='coerce')
+				if pd.notna(parsed):
+					return parsed.date()
+				
+				# Si llegamos aquí, no se pudo parsear
+				return None
+				
 			except Exception as e:
 				# Si falla, retornar None (log opcional para debug)
+				# self.stdout.write(self.style.WARNING(f"No se pudo parsear fecha '{val}': {e}"))
 				return None
 
 		for _, row in df.iterrows():

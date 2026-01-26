@@ -113,12 +113,15 @@ export interface ViabilitySemaphores {
 	export interface Project {
 	id: number;
 	nombre: string;       // Viene de 'programa'
+	programa?: string;    // Campo original del backend
 	status: string;       // Viene de 'estatus_general' o 'semaforo'
 	avance: number;       // Viene de 'avance_fisico_pct'
+	avance_fisico_pct?: number;  // Campo original del backend
 	presupuesto: number;  // Viene de 'presupuesto_final'
 	ejecutado: number;    // Viene de 'monto_ejecutado'
 	responsable: string;  // Viene de 'responsable_operativo'
 	direccion: string;    // Viene de 'area_responsable'
+	area_responsable?: string;  // Campo original del backend
 	riesgos: string[];    // Convertimos 'problemas_identificados' a array
 	descripcion: string;  // Viene de 'impacto_social_desc'
 	fechaInicio: string;
@@ -129,6 +132,7 @@ export interface ViabilitySemaphores {
 	fecha_termino_real?: string;  // Fecha de término real (cuando concluyó)
 	duracion_meses?: number;      // Duración total del proyecto en meses
 	ubicacion: string;
+	ubicacion_especifica?: string;  // Campo original del backend
 	zona: string;
 	alcanceTerritorial?: string; // Del Bloque 3 - Categorización
 	beneficiarios: number;
@@ -158,4 +162,22 @@ export interface ViabilitySemaphores {
 	observaciones?: string;       // Soluciona el error .observaciones
 	problema_resuelve?: string;   // Soluciona el error .problema_resuelve
 	alcaldias?: string;
+}
+
+export interface TerritorialDataV2 {
+    pie_chart_data: Array<{
+        name: string;
+        value: number;
+    }>;
+    bar_chart_data: Array<{
+        name: string;
+        fullName: string;
+        proyectos: number;
+        beneficiarios: number;
+    }>;
+    _meta?: {
+        version: 'v1' | 'v2';
+        total_projects: number;
+        timestamp: string;
+    };
 }

@@ -1,41 +1,60 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { Project } from '@/types';
 import { APP_COLORS, STATUS_COLORS } from '@/lib/theme';
-import { H3, Subtitle } from '@/components/ui/typography'; // <--- NUEVO IMPORT
+import { H3, Subtitle } from '@/components/ui/typography';
+import { useDashboardKPIs } from '@/hooks/useDashboardKPIs';
+import { Skeleton } from '@/components/ui/skeleton';
 
-interface ProjectsStatusChartProps {
-  projects: Project[];
-}
+/**
+ * ProjectsStatusChart - Sprint 3 Optimizado
+ * 
+ * Cambios:
+ * - ✅ Usa useDashboardKPIs() hook con agregaciones del backend
+ * - ✅ Elimina múltiples .filter() en cliente
+ * - ✅ Datos ya procesados desde SQL
+ * - ✅ Cache automático con TanStack Query
+ */
+export function ProjectsStatusChart() {
+  const { data: kpis, isLoading, error } = useDashboardKPIs();
 
-export function ProjectsStatusChart({ projects }: ProjectsStatusChartProps) {
-  
-  const data = [
-    { 
-      name: 'Completado', 
-      value: projects.filter(p => p.status === 'completado').length, 
-      color: STATUS_COLORS.completado 
-    },
-    { 
-      name: 'En Ejecución', 
-      value: projects.filter(p => p.status === 'en_ejecucion').length, 
-      color: STATUS_COLORS.en_ejecucion
-    },
-    { 
-      name: 'En Riesgo', 
-      value: projects.filter(p => p.status === 'en_riesgo').length, 
-      color: STATUS_COLORS.en_riesgo
-    },
-    { 
-      name: 'Planificado', 
-      value: projects.filter(p => p.status === 'planificado').length, 
-      color: STATUS_COLORS.planificado
-    },
-    {
-      name: 'Retrasado',
-      value: projects.filter(p => p.status === 'retrasado').length,
-      color: STATUS_COLORS.retrasado
-    }
-  ].filter(item => item.value > 0);
+  if (isLoading) {
+    return (
+      <div className="bg-card rounded-xl border border-border shadow-sm p-6">
+        <Skeleton className="h-6 w-48 mb-2" />
+        <Skeleton className="h-4 w-64 mb-6" />
+        <Skeleton className="h-[300px] w-full" />
+      </div>
+    );
+  }
+
+  if (error || !kpis) {
+    return (
+      <div className="bg-card rounded-xl border border-border shadow-sm p-6 text-center text-muted-foreground">
+        <p>Error al cargar estado de proyectos</p>
+      </div>
+    );
+  }
+
+  // Mapear estados del backend a nombres en español y colores
+  const statusMapping: Record<string, { name: string; color: string }> = {
+    'planificado': { name: 'Planificado', color: STATUS_COLORS.planificado },
+    'en_ejecucion': { name: 'En Ejecución', color: STATUS_COLORS.en_ejecucion },
+    'en_riesgo': { name: 'En Riesgo', color: STATUS_COLORS.en_riesgo },
+    'completado': { name: 'Completado', color: STATUS_COLORS.completado },
+  };
+
+  const data = kpis.by_status
+    .map(item => {
+      const mapped = statusMapping[item.estatus_general] || {
+        name: item.estatus_general,
+        color: APP_COLORS.neutral
+      };
+      return {
+        name: mapped.name,
+        value: item.count,
+        color: mapped.color
+      };
+    })
+    .filter(item => item.value > 0);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -106,7 +125,7 @@ export function ProjectsStatusChart({ projects }: ProjectsStatusChartProps) {
         
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[65%] text-center pointer-events-none flex flex-col justify-center items-center z-0">
           <span className="text-4xl md:text-5xl font-bold font-display text-foreground tracking-tighter leading-none">
-            {projects.length}
+            {kpis.projects.total}
           </span>
           <span className="text-[10px] md:text-xs uppercase tracking-widest text-muted-foreground font-semibold mt-1">
             Total

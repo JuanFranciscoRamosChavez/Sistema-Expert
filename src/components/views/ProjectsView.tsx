@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
 	Search, 
 	Filter, 
@@ -42,65 +42,48 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { Project } from '@/types/index';
-import { mapApiToUiProject } from '@/lib/mappers';
 import { H1, Subtitle } from "@/components/ui/typography";
 import { APP_COLORS, STATUS_COLORS } from '@/lib/theme';
+import { useFilteredProjects } from '@/hooks/useFilteredProjects';
+import { useDashboardData } from '@/hooks/useDashboardData';
 
+/**
+ * ProjectsView - Sprint 3 migrado a backend
+ * Usa useFilteredProjects con filtrado serverside
+ */
 export function ProjectsView() {
-	// --- ESTADOS ---
-	const [projects, setProjects] = useState<Project[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-	
 	// Estados de Filtros y Vista
 	const [searchTerm, setSearchTerm] = useState('');
 	const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 	const [selectedArea, setSelectedArea] = useState<string>('all');
 	const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
-	// --- CARGA DE DATOS ---
-	useEffect(() => {
-		const fetchProjects = async () => {
-			try {
-				const response = await fetch('http://127.0.0.1:8000/api/obras/');
-				if (!response.ok) {
-					throw new Error('No se pudo conectar con el servidor de proyectos');
-				}
-				const data = await response.json();
-				if (Array.isArray(data)) {
-					setProjects(data.map(mapApiToUiProject));
-				}
-			} catch (err) {
-				console.error("Error cargando proyectos:", err);
-				setError("Hubo un problema al cargar la lista de proyectos.");
-			} finally {
-				setLoading(false);
-			}
-		};
+	// Construir filtros para el backend
+	const filters = useMemo(() => ({
+		search: searchTerm || undefined,
+		direccion: selectedArea !== 'all' ? selectedArea : undefined,
+		status: selectedStatus !== 'all' ? selectedStatus : undefined,
+		page_size: 'todos' as const
+	}), [searchTerm, selectedArea, selectedStatus]);
 
-		fetchProjects();
-	}, []);
+	// Usar hook del backend para filtrado serverside
+	const { data, isLoading: loading, error: queryError } = useFilteredProjects(filters);
+	
+	const filteredProjects = data?.results || [];
+	const error = queryError ? 'Hubo un problema al cargar la lista de proyectos.' : null;
 
-	// --- EXTRACCIÓN DE OPCIONES PARA FILTROS ---
+	// Obtener opciones de filtros únicas (usar fallback para opciones)
+	const { projects: allProjectsForOptions } = useDashboardData();
+	
 	const uniqueAreas = useMemo(() => {
-		const areas = projects.map(p => p.direccion).filter(Boolean);
+		const areas = allProjectsForOptions.map(p => p.direccion).filter(Boolean);
 		return Array.from(new Set(areas)).sort();
-	}, [projects]);
+	}, [allProjectsForOptions]);
 
 	const uniqueStatuses = useMemo(() => {
-		const statuses = projects.map(p => p.status);
+		const statuses = allProjectsForOptions.map(p => p.status);
 		return Array.from(new Set(statuses));
-	}, [projects]);
-
-	// --- LÓGICA DE FILTRADO ---
-	const filteredProjects = projects.filter(p => {
-		const matchesSearch = 
-			p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			p.responsable?.toLowerCase().includes(searchTerm.toLowerCase());
-		const matchesArea = selectedArea === 'all' || p.direccion === selectedArea;
-		const matchesStatus = selectedStatus === 'all' || p.status === selectedStatus;
-		return matchesSearch && matchesArea && matchesStatus;
-	});
+	}, [allProjectsForOptions]);
 
 	// --- FUNCIÓN PARA LIMPIAR FILTROS ---
 	const clearFilters = () => {
@@ -192,23 +175,23 @@ export function ProjectsView() {
 					<div>
 						<H1>Cartera de Proyectos</H1>
 						<Subtitle>
-							Mostrando {filteredProjects.length} de {projects.length} obras registradas
-						</Subtitle>
-					</div>
-
-					{/* Toggle View (Solo Desktop) */}
-					<div className="hidden md:flex bg-muted p-1 rounded-lg border border-border">
-						<button onClick={() => setViewMode('grid')} className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title="Cuadrícula">
-							<LayoutGrid className="h-4 w-4" />
-						</button>
-						<button onClick={() => setViewMode('list')} className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title="Lista">
-							<ListIcon className="h-4 w-4" />
-						</button>
-					</div>
+						Mostrando {filteredProjects.length} de {data?.count || allProjectsForOptions.length} obras registradas
+					</Subtitle>
 				</div>
-				
-				{/* 2. BARRA DE FILTROS FLUIDA */}
-				<div className="flex gap-3 items-center bg-card p-3 rounded-xl border border-border shadow-sm">
+
+				{/* Botones de Vista */}
+				<div className="flex gap-2 bg-muted/50 p-1 rounded-lg w-fit">
+					<button onClick={() => setViewMode('grid')} className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title="Cuadrícula">
+						<LayoutGrid className="h-4 w-4" />
+					</button>
+					<button onClick={() => setViewMode('list')} className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title="Lista">
+						<ListIcon className="h-4 w-4" />
+					</button>
+				</div>
+			</div>
+			
+			{/* 2. BARRA DE FILTROS FLUIDA */}
+			<div className="flex gap-3 items-center bg-card p-3 rounded-xl border border-border shadow-sm">
 					
 					{/* BUSCADOR */}
 					<div className="relative flex-1">

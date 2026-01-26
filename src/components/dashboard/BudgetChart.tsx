@@ -1,13 +1,31 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { Project } from '@/types';
 import { APP_COLORS } from '@/lib/theme';
-import { H3, Subtitle } from '@/components/ui/typography'; // <--- NUEVO IMPORT
+import { H3, Subtitle } from '@/components/ui/typography';
+import { useFilteredProjects } from '@/hooks/useFilteredProjects';
 
-interface Props {
-  projects: Project[];
-}
-
-export function BudgetChart({ projects }: Props) {
+/**
+ * BudgetChart - Sprint 3 migrado a backend
+ * Usa useFilteredProjects para obtener todos los proyectos y calcular top 6
+ */
+export function BudgetChart() {
+  // Obtener todos los proyectos del backend
+  const { data: projectsData, isLoading } = useFilteredProjects({ page_size: 'todos', ordering: '-presupuesto_modificado' });
+  const projects = projectsData?.results || [];
+  
+  if (isLoading) {
+    return (
+      <div className="bg-card rounded-xl border border-border shadow-sm flex flex-col h-[350px] md:h-[400px] animate-pulse">
+        <div className="p-5 border-b border-border">
+          <div className="h-6 w-48 bg-muted rounded" />
+          <div className="h-4 w-64 bg-muted rounded mt-2" />
+        </div>
+        <div className="flex-1 p-4 flex items-center justify-center">
+          <div className="text-muted-foreground">Cargando datos presupuestales...</div>
+        </div>
+      </div>
+    );
+  }
   
   const normalizedData = projects.map(p => {
     const rawBudget = p.presupuesto || 0;
@@ -95,7 +113,7 @@ export function BudgetChart({ projects }: Props) {
             margin={{ left: 0, right: 30, top: 10, bottom: 0 }}
             barGap={-24} 
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} opacity={0.5} />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} opacity={0.5} />
             
             <XAxis 
               type="number" 
@@ -115,7 +133,7 @@ export function BudgetChart({ projects }: Props) {
               tickLine={false}
             />
             
-            <Tooltip content={<CustomTooltip />} cursor={{fill: '#f1f5f9', radius: 4}} />
+            <Tooltip content={<CustomTooltip />} cursor={{fill: 'hsl(var(--muted))', radius: 4}} />
             
             <Legend 
               verticalAlign="top" 

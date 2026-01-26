@@ -1,0 +1,72 @@
+[
+  {
+    "name": "Filtrar por \u00e1rea_responsable",
+    "avg": 0.12340545654296875,
+    "min": 0.07295608520507812,
+    "max": 0.2529621124267578,
+    "iterations": 5
+  },
+  {
+    "name": "Filtrar por estatus_general",
+    "avg": 0.07424354553222656,
+    "min": 0.06365776062011719,
+    "max": 0.09250640869140625,
+    "iterations": 5
+  },
+  {
+    "name": "Ordenar por fecha_termino_prog",
+    "avg": 0.045871734619140625,
+    "min": 0.03528594970703125,
+    "max": 0.056743621826171875,
+    "iterations": 5
+  },
+  {
+    "name": "Actividad reciente (\u00faltimos 10)",
+    "avg": 0.1094818115234375,
+    "min": 0.08893013000488281,
+    "max": 0.13566017150878906,
+    "iterations": 5
+  },
+  {
+    "name": "Proyectos cr\u00edticos (top 20)",
+    "avg": 0.10695457458496094,
+    "min": 0.08893013000488281,
+    "max": 0.1437664031982422,
+    "iterations": 5
+  },
+  {
+    "name": "Ordenar por avance f\u00edsico DESC",
+    "avg": 0.038623809814453125,
+    "min": 0.03361701965332031,
+    "max": 0.05364418029785156,
+    "iterations": 5
+  },
+  {
+    "name": "Filtrar \u00e1rea + ordenar avance",
+    "avg": 0.10480880737304688,
+    "min": 0.08606910705566406,
+    "max": 0.13017654418945312,
+    "iterations": 5
+  },
+  {
+    "name": "Timeline (estado + fecha)",
+    "avg": 0.176239013671875,
+    "min": 0.15687942504882812,
+    "max": 0.20265579223632812,
+    "iterations": 5
+  },
+  {
+    "name": "Buscar en alcald\u00edas",
+    "avg": 0.10714530944824219,
+    "min": 0.0934600830078125,
+    "max": 0.13780593872070312,
+    "iterations": 5
+  },
+  {
+    "name": "COUNT por \u00e1rea_responsable",
+    "avg": 0.16088485717773438,
+    "min": 0.11682510375976562,
+    "max": 0.28514862060546875,
+    "iterations": 5
+  }
+]

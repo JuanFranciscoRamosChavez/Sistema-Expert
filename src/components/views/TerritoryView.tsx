@@ -9,65 +9,101 @@ import {
 	BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend 
 } from 'recharts';
 
+import { useTerritories } from '@/hooks/useTerritories';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { formatBudgetValue, formatNumber } from '@/lib/formatters';
-import { ZONA_MAPPING, ZONE_COLORS } from '@/lib/zones';
+import { ZONE_COLORS } from '@/lib/zones';
 import { APP_COLORS } from '@/lib/theme';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { H1, H3, P, Subtitle, Small } from '@/components/ui/typography';
-import { 
-	calculateZoneStats, 
-	filterProjectsByZone,
-	preparePieChartData,
-	prepareBarChartData,
-	calculateTotalDistributedBudget,
-	calculateTotalZoneAssignments,
-	calculateTotalBeneficiaries,
-	hasUnassignedAnomalies,
-	getUnassignedPercentage
-} from '@/lib/territoryCalculations';
 
+/**
+ * TerritoryView - Sprint 3 migrado a backend
+ * Usa useTerritories para agregaciones territoriales serverside
+ */
 export function TerritoryView() {
-	const { projects, kpiData, loading, error } = useDashboardData();
+	// Obtener agregaciones territoriales del backend
+	const { data: territoriesData, isLoading: loadingTerritories, error: territoriesError } = useTerritories();
+	
+	// Mantener useDashboardData solo para filtrar proyectos individuales al hacer click en zona
+	const { projects, loading: loadingProjects } = useDashboardData();
+	
+	const loading = loadingTerritories || loadingProjects;
+	const error = territoriesError ? 'Error al cargar datos territoriales' : null;
+	
 	const [selectedZone, setSelectedZone] = useState<string | null>(null);
 	const [isMapDialogOpen, setIsMapDialogOpen] = useState(false);
 
-	// --- Cálculos de datos (delegados a funciones puras) ---
-	const zoneStats = useMemo(() => calculateZoneStats(projects), [projects]);
+	// Convertir datos del backend al formato esperado por la UI
+	const zoneStats = useMemo(() => {
+		if (!territoriesData?.territories) return {};
+		
+		const stats: Record<string, any> = {};
+		territoriesData.territories.forEach(territory => {
+			stats[territory.name] = {
+				projects: territory.projects,
+				budget: territory.total_budget,
+				beneficiaries: 0, // El backend no calcula beneficiarios aún
+				count: territory.projects
+			};
+		});
+		return stats;
+	}, [territoriesData]);
 
-	// --- Filtrar proyectos de una zona específica ---
+	// Filtrar proyectos por zona seleccionada
 	const filteredProjects = useMemo(() => {
 		if (!selectedZone) return [];
-		return filterProjectsByZone(projects, selectedZone);
+		return projects.filter(p => {
+			const zona = p.zona?.toLowerCase() || '';
+			const alcaldias = p.alcaldias?.toLowerCase() || '';
+			const zonaNormalizada = selectedZone.toLowerCase();
+			return zona.includes(zonaNormalizada) || alcaldias.includes(zonaNormalizada);
+		});
 	}, [projects, selectedZone]);
 
-	// Manejar clic en zona
 	const handleZoneClick = (zoneName: string) => {
 		setSelectedZone(zoneName);
 		setIsMapDialogOpen(true);
 	};
 
-	// --- Preparación de Datos para Gráficas ---
-	const pieData = useMemo(() => preparePieChartData(zoneStats), [zoneStats]);
-	const barData = useMemo(() => prepareBarChartData(zoneStats), [zoneStats]);
+	// Preparar datos para gráficas
+	const pieData = useMemo(() => {
+		return Object.entries(zoneStats)
+			.filter(([zone, stats]) => stats.projects > 0 && zone !== 'Sin Asignar')
+			.map(([zone, stats]) => ({
+				name: zone,
+				value: stats.projects,
+				color: ZONE_COLORS[zone] || '#gray'
+			}));
+	}, [zoneStats]);
 
-	// --- Calcular totales ---
-	const presupuestoZonasCalculado = useMemo(() => calculateTotalDistributedBudget(zoneStats), [zoneStats]);
-	const proyectosTotalesReales = projects.length;
-	const asignacionesZonales = useMemo(() => calculateTotalZoneAssignments(zoneStats), [zoneStats]);
-	const beneficiariosTotales = useMemo(() => calculateTotalBeneficiaries(zoneStats), [zoneStats]);
-	const presupuestoTotalReal = kpiData?.presupuesto_total || presupuestoZonasCalculado;
+	const barData = useMemo(() => {
+		return Object.entries(zoneStats)
+			.filter(([zone]) => zone !== 'Sin Asignar')
+			.map(([zone, stats]) => ({
+				name: zone,
+				Proyectos: stats.projects,
+				Presupuesto: stats.budget / 1_000_000,
+				Beneficiarios: stats.beneficiaries
+			}));
+	}, [zoneStats]);
+
+	// Calcular totales
+	const presupuestoZonasCalculado = Object.values(zoneStats)
+		.reduce((sum: number, z: any) => sum + (z.budget || 0), 0);
+	const proyectosTotalesReales = Object.values(zoneStats)
+		.reduce((sum: number, z: any) => sum + (z.projects || 0), 0);
+	const asignacionesZonales = Object.keys(zoneStats).length;
+	const beneficiariosTotales = Object.values(zoneStats)
+		.reduce((sum: number, z: any) => sum + (z.beneficiaries || 0), 0);
 	
-	// --- Detectar anomalías ---
-	const hayAnomaliasSinAsignar = useMemo(() => 
-		hasUnassignedAnomalies(zoneStats, presupuestoTotalReal), 
-		[zoneStats, presupuestoTotalReal]
-	);
-	const porcentajeSinAsignar = useMemo(() => 
-		getUnassignedPercentage(zoneStats, presupuestoTotalReal),
-		[zoneStats, presupuestoTotalReal]
-	);
-	const sinAsignarBudget = zoneStats['Sin Asignar']?.budget || 0;
+	const presupuestoTotalReal = presupuestoZonasCalculado;
+	const sinAsignarStats = zoneStats['Sin Asignar'] || { budget: 0, projects: 0 };
+	const hayAnomaliasSinAsignar = sinAsignarStats.projects > 0;
+	const porcentajeSinAsignar = presupuestoTotalReal > 0 
+		? (sinAsignarStats.budget / presupuestoTotalReal) * 100 
+		: 0;
+	const sinAsignarBudget = sinAsignarStats.budget;
 
 	// --- Estados de Carga y Error ---
 	if (loading) {

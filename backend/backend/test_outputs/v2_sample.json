@@ -1,0 +1,60 @@
+{
+  "pie_chart_data": [
+    {
+      "name": "Sin Asignar",
+      "value": 838.56
+    },
+    {
+      "name": "Zona Norte",
+      "value": 237.16
+    },
+    {
+      "name": "Zona Sur",
+      "value": 237.16
+    },
+    {
+      "name": "Centro Histórico",
+      "value": 237.16
+    },
+    {
+      "name": "Zona Oriente",
+      "value": 237.16
+    },
+    {
+      "name": "Zona Poniente",
+      "value": 237.16
+    }
+  ],
+  "bar_chart_data": [
+    {
+      "name": "Norte",
+      "fullName": "Zona Norte",
+      "proyectos": 2,
+      "beneficiarios": 229200
+    },
+    {
+      "name": "Sur",
+      "fullName": "Zona Sur",
+      "proyectos": 2,
+      "beneficiarios": 229200
+    },
+    {
+      "name": "Centro",
+      "fullName": "Centro Histórico",
+      "proyectos": 2,
+      "beneficiarios": 229200
+    },
+    {
+      "name": "Oriente",
+      "fullName": "Zona Oriente",
+      "proyectos": 2,
+      "beneficiarios": 229200
+    },
+    {
+      "name": "Poniente",
+      "fullName": "Zona Poniente",
+      "proyectos": 2,
+      "beneficiarios": 229200
+    }
+  ]
+}

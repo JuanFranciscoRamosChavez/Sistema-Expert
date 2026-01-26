@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { APP_COLORS } from '@/lib/theme';
-import { H2, Subtitle, Small } from '@/components/ui/typography'; // <--- NUEVO IMPORT
+import { H2, Subtitle, Small } from '@/components/ui/typography'; 
 
 interface KPICardProps {
 	title: string;

@@ -1,20 +1,18 @@
-import { FolderKanban, DollarSign, Users, AlertTriangle } from 'lucide-react';
+import { FolderKanban, DollarSign, Users, AlertTriangle, TrendingUp } from 'lucide-react';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { ProjectsStatusChart } from '@/components/dashboard/ProjectsStatusChart';
 import { BudgetChart } from '@/components/dashboard/BudgetChart';
 import { CriticalProjectsTable } from '@/components/dashboard/CriticalProjectsTable';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { H1, Subtitle } from "@/components/ui/typography";
-import { useDashboardData } from '@/hooks/useDashboardData';
-import { 
-	formatBudgetValue, 
-	formatBudgetSubtitle, 
-	formatBeneficiariesValue, 
-	formatBeneficiariesSubtitle 
-} from '@/lib/formatters';
+import { useDashboardKPIs } from '@/hooks/useDashboardKPIs';
 
+/**
+ * DashboardView - Sprint 3 totalmente migrado a backend
+ * Usa solo useDashboardKPIs, sin dependencia de useDashboardData
+ */
 export function DashboardView() {
-	const { projects, kpiData, loading, error } = useDashboardData();
+	const { data: kpis, isLoading: loading, error } = useDashboardKPIs();
 
 	if (loading) {
 		return (
@@ -25,12 +23,12 @@ export function DashboardView() {
 		);
 	}
 
-	if (error || !kpiData) {
+	if (error || !kpis) {
 		return (
 			<div className="flex h-screen items-center justify-center p-4 text-center">
 				<div className="space-y-2">
 					<AlertTriangle className="h-10 w-10 text-destructive mx-auto" />
-					<p className="text-muted-foreground">{error || 'Error al cargar datos'}</p>
+					<p className="text-muted-foreground">{error?.message || 'Error al cargar datos'}</p>
 					<p className="text-sm text-muted-foreground">
 						Verifica que el backend esté corriendo en el puerto 8000
 					</p>
@@ -52,51 +50,50 @@ export function DashboardView() {
 			{/* KPIs principales */}
 			<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
 				<KPICard
-					title="Total de Proyecto Actuales"
-					value={kpiData.total_proyectos}
-					subtitle="En cartera activa"
+					title="Total de Proyectos"
+					value={kpis.projects?.total || 0}
+					subtitle="proyectos registrados"
 					icon={FolderKanban}
 					variant="default"
 				/>
 				<KPICard
 					title="Presupuesto Total"
-					value={formatBudgetValue({ value: kpiData.presupuesto_total })}
-					subtitle={formatBudgetSubtitle(kpiData.presupuesto_total)}
+					value={kpis.budget?.formatted_total || '$0'}
+					subtitle={`${(kpis.budget?.execution_rate || 0).toFixed(1)}% ejecutado`}
 					icon={DollarSign}
 					variant="success"
-					delay={200}
-				/>
-				<KPICard
-					title="Beneficiarios"
-				value={formatBeneficiariesValue({ value: kpiData.beneficiarios })}
-					subtitle={formatBeneficiariesSubtitle(kpiData.beneficiarios)}
-					icon={Users}
-					variant="info"
 					delay={100}
 				/>
 				<KPICard
-					title="Proyectos en Riesgo"
-					value={kpiData.atencion_requerida}
-					alert={kpiData.atencion_requerida > 0}
-					subtitle="Requieren atención"
+					title="Zonas Cubiertas"
+					value={kpis.zones?.total || 0}
+					subtitle={kpis.zones?.label || 'Sin datos'}
+					icon={Users}
+					variant="info"
+					delay={200}
+				/>
+				<KPICard
+					title="Avance Promedio"
+					value={`${(kpis.progress?.average || 0).toFixed(1)}%`}
+					subtitle={kpis.progress?.label || 'Sin datos'}
 					icon={AlertTriangle}
-					variant="danger"
+					variant="warning"
 					delay={300}
 				/>
 			</div>
 
 			{/* Gráficas */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				<ProjectsStatusChart projects={projects} />
-				<BudgetChart projects={projects} />
+				<ProjectsStatusChart />
+				<BudgetChart />
 			</div>
 
 			{/* Tabla y actividad reciente */}
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				<div className="lg:col-span-2">
-					<CriticalProjectsTable projects={projects} />
+					<CriticalProjectsTable />
 				</div>
-				<RecentActivity projects={projects} />
+			<RecentActivity />
 			</div>
 		</div>
 	);
