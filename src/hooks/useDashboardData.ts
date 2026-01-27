@@ -1,102 +1,80 @@
-import { useEffect, useState } from 'react';
-import { Project, KPIData } from '@/types';
-import { mapApiToUiProject } from '@/lib/mappers';
+import { useQueries } from '@tanstack/react-query';
 import { API_ENDPOINTS } from '@/config/api';
-import { TerritorialDataV2 } from '@/types';	
-
-interface DashboardDataState {
-	projects: Project[];
-	kpiData: KPIData | null;
-	loading: boolean;
-	error: string | null;
-	territorialData: TerritorialDataV2 | null;
-	territorialVersion?: 'v1' | 'v2'; // Tracking de versión para debugging
-}
-
-interface UseDashboardDataReturn extends DashboardDataState {
-	refetch: () => Promise<void>;
-}
+import { mapApiToUiProject } from '@/lib/mappers';
+import { APIProject, KPIData, TerritorialDataV2 } from '@/types';
 
 /**
- * Custom hook para manejar la lógica de datos del dashboard
- * Separa la lógica de negocio del componente de presentación
+ * Hook: useDashboardData
+ * Arquitectura: Parallel Queries con TanStack Query
+ * * Ventajas sobre la versión anterior:
+ * 1. Caching automático (no recarga todo al cambiar de tab).
+ * 2. Reintentos automáticos en caso de fallo de red.
+ * 3. Devuelve datos parciales si una API falla pero las otras no (Resiliencia).
  */
-export function useDashboardData(): UseDashboardDataReturn {
-	const [projects, setProjects] = useState<Project[]>([]);
-	const [kpiData, setKpiData] = useState<KPIData | null>(null);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-	const [territorialData, setTerritorialData] = useState<TerritorialDataV2 | null>(null);
+export function useDashboardData() {
+  const results = useQueries({
+    queries: [
+      // 1. KPIs (Usando el endpoint V2 optimizado)
+      {
+        queryKey: ['dashboard', 'kpis'],
+        queryFn: async () => {
+          const res = await fetch(API_ENDPOINTS.dashboard.kpis);
+          if (!res.ok) throw new Error('Error al cargar KPIs');
+          return res.json() as Promise<KPIData>;
+        },
+        staleTime: 5 * 60 * 1000, // 5 min cache
+      },
+      // 2. Proyectos (Lista completa)
+      {
+        queryKey: ['dashboard', 'projects'],
+        queryFn: async () => {
+          const res = await fetch(API_ENDPOINTS.dashboard.obras);
+          if (!res.ok) throw new Error('Error al cargar Obras');
+          
+          const data = await res.json();
+          // Validación de array antes de mapear
+          if (!Array.isArray(data)) return [];
+          
+          // Mapeo seguro con tipos explícitos
+          return (data as APIProject[]).map(mapApiToUiProject);
+        },
+        staleTime: 5 * 60 * 1000,
+      },
+      // 3. Datos Territoriales (V2 con agregación SQL)
+      {
+        queryKey: ['dashboard', 'territorial'],
+        queryFn: async () => {
+          const res = await fetch(API_ENDPOINTS.dashboard.territorial);
+          if (!res.ok) throw new Error('Error al cargar Territorio');
+          return res.json() as Promise<TerritorialDataV2>;
+        },
+        staleTime: 10 * 60 * 1000, // 10 min cache (cambia poco)
+      },
+    ],
+  });
 
-	const fetchData = async () => {
-		try {
-			setLoading(true);
-			setError(null);
+  const [kpiQuery, projectsQuery, territorialQuery] = results;
 
-			const [resumenRes, obrasRes, territorialRes] = await Promise.all([
-				fetch(API_ENDPOINTS.dashboard.resumen),
-				fetch(API_ENDPOINTS.dashboard.obras),
-				fetch(API_ENDPOINTS.dashboard.territorial)
-			]);
+  // Unificamos el estado de carga y error para la vista simple
+  const isLoading = results.some((query) => query.isLoading);
+  const error = results.find((query) => query.error)?.error?.message || null;
 
-			if (!resumenRes.ok || !obrasRes.ok || !territorialRes.ok) {
-				const errorMsg = !resumenRes.ok 
-					? `Error en resumen: ${resumenRes.status}` 
-					: !obrasRes.ok 
-					? `Error en obras: ${obrasRes.status}`
-					: `Error en territorial: ${territorialRes.status}`;
-				throw new Error(errorMsg);
-			}
-
-			const resumenJson = await resumenRes.json();
-			const obrasJson = await obrasRes.json();
-			const territorialJson: TerritorialDataV2 = await territorialRes.json();
-			setTerritorialData(territorialJson);
-			
-			// Debug: Log de versión territorial (útil para testing A/B)
-			if (territorialJson._meta) {
-				console.info(`📊 Territorial API: ${territorialJson._meta.version} | Proyectos: ${territorialJson._meta.total_projects}`);
-			}
-
-			// Procesar proyectos
-			if (Array.isArray(obrasJson)) {
-				setProjects(obrasJson.map(mapApiToUiProject));
-			} else {
-				console.warn('Formato inesperado en obras:', obrasJson);
-				setProjects([]);
-			}
-
-			// Procesar KPIs
-			if (resumenJson?.kpi_tarjetas) {
-				setKpiData(resumenJson.kpi_tarjetas);
-			} else {
-				console.warn('Formato inesperado en resumen:', resumenJson);
-				throw new Error('No se encontraron datos de KPI');
-			}
-
-		} catch (err) {
-			const errorMessage = err instanceof Error 
-				? err.message 
-				: 'Error desconocido';
-			
-			console.error('Error al cargar datos del dashboard:', err);
-			setError(`No se pudo cargar la información: ${errorMessage}`);
-		} finally {
-			setLoading(false);
-		}
-	};
-
-	useEffect(() => {
-		fetchData();
-	}, []);
-
-	return {
-		projects,
-		kpiData,
-		loading,
-		error,
-		territorialData,
-		territorialVersion: territorialData?._meta?.version,
-		refetch: fetchData
-	};
+  return {
+    // Datos procesados y seguros (fallback a valores vacíos/nulos)
+    kpiData: kpiQuery.data || null,
+    projects: projectsQuery.data || [],
+    territorialData: territorialQuery.data || null,
+    
+    // Metadatos
+    territorialVersion: territorialQuery.data?._meta?.version,
+    
+    // UI States
+    loading: isLoading,
+    error,
+    
+    // Helper para recargar todo manualmente
+    refetch: async () => {
+      await Promise.all(results.map((r) => r.refetch()));
+    },
+  };
 }
