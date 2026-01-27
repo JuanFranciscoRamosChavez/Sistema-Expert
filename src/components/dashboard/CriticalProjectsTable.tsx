@@ -9,34 +9,26 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react";
-import { APP_COLORS, PRIORITY_COLORS } from "@/lib/theme"; 
+import { 
+  APP_COLORS, 
+  PRIORITY_COLORS, 
+  STATUS_COLORS 
+} from "@/lib/theme"; // ✅ Importación correcta desde el tema central
 import { H3, Subtitle } from "@/components/ui/typography";
 import { useCriticalProjects } from "@/hooks/useCriticalProjects";
-
-// --- MAPEOS VISUALES (Estáticos y Declarativos) ---
-
-const RISK_COLORS_MAP: Record<string, string> = {
-  en_riesgo: APP_COLORS.danger,
-  retrasado: APP_COLORS.warning,
-  planificado: APP_COLORS.info,
-  // Fallback
-  default: APP_COLORS.warning
-};
+import { Project } from "@/types";
 
 export function CriticalProjectsTable() {
   const { data: criticalProjects = [], isLoading } = useCriticalProjects(5);
 
-  // 1. Loading State (Componente pequeño extraído o inline limpio)
   if (isLoading) {
     return <TableSkeleton />;
   }
 
-  // 2. Empty State
   if (criticalProjects.length === 0) {
     return <EmptyState />;
   }
 
-  // 3. Render Principal
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm h-full flex flex-col animate-fade-in delay-300">
       
@@ -60,15 +52,21 @@ export function CriticalProjectsTable() {
           <TableHeader>
             <TableRow className="hover:bg-transparent border-border">
               <TableHead className="w-[40%]">Proyecto / Responsable</TableHead>
-              <TableHead>Nivel de Riesgo</TableHead>
+              <TableHead>Estatus</TableHead>
               <TableHead>Avance Físico</TableHead>
               <TableHead className="text-right">Prioridad</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {criticalProjects.map((project) => {
-              // Resolución de colores visuales (SIN lógica de negocio)
-              const riskColor = RISK_COLORS_MAP[project.status] || RISK_COLORS_MAP.default;
+              // ✅ LÓGICA VISUAL CENTRALIZADA:
+              // Usamos las constantes del tema. Si la key no existe, fallback a neutral/warning.
+              
+              // 1. Color de Estatus (Viene de theme.ts -> STATUS_COLORS)
+              // project.status viene normalizado del backend ('en_riesgo', 'retrasado', etc.)
+              const statusColor = STATUS_COLORS[project.status as keyof typeof STATUS_COLORS] || APP_COLORS.warning;
+              
+              // 2. Color de Prioridad (Viene de theme.ts -> PRIORITY_COLORS)
               const priorityColor = PRIORITY_COLORS[project.prioridad as keyof typeof PRIORITY_COLORS] || APP_COLORS.neutral;
 
               return (
@@ -87,19 +85,18 @@ export function CriticalProjectsTable() {
                     </div>
                   </TableCell>
 
-                  {/* Columna: Riesgo (Badges con estilos dinámicos pero seguros) */}
+                  {/* Columna: Estatus (Badge Dinámico usando el Tema) */}
                   <TableCell>
                     <div 
                       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border"
                       style={{ 
-                        color: riskColor,
-                        borderColor: `${riskColor}40`,
-                        backgroundColor: `${riskColor}15`
+                        color: statusColor,
+                        borderColor: `${statusColor}40`,     // Borde sutil
+                        backgroundColor: `${statusColor}10`  // Fondo muy suave
                       }}
                     >
                       <AlertCircle className="w-3 h-3" />
-                      {/* Usamos el status limpio del backend, formateado visualmente */}
-                      <span className="capitalize">{project.status.replace('_', ' ')}</span>
+                      <span className="capitalize">{project.status.replace(/_/g, ' ')}</span>
                     </div>
                   </TableCell>
 
@@ -110,15 +107,16 @@ export function CriticalProjectsTable() {
                         <span className="text-muted-foreground font-medium">Progreso</span>
                         <span className="font-bold text-foreground">{project.avance.toFixed(1)}%</span>
                       </div>
+                      {/* Usamos el color del estatus para la barra de progreso */}
                       <Progress 
                         value={project.avance} 
                         className="h-2 bg-muted" 
-                        indicatorColor={riskColor}
+                        indicatorColor={statusColor} 
                       />
                     </div>
                   </TableCell>
 
-                  {/* Columna: Prioridad */}
+                  {/* Columna: Prioridad (Badge Dinámico usando el Tema) */}
                   <TableCell className="text-right">
                     <Badge 
                       variant="outline" 
@@ -143,7 +141,7 @@ export function CriticalProjectsTable() {
   );
 }
 
-// --- SUB-COMPONENTES (Separación de Concerns) ---
+// --- SUB-COMPONENTES (Sin cambios lógicos, solo UI) ---
 
 function TableSkeleton() {
   return (
