@@ -7,6 +7,7 @@ import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { ProjectDetail } from './ProjectDetail';
 import { APP_COLORS, STATUS_COLORS } from '@/lib/theme';
 import { H3, Small } from '@/components/ui/typography';
+import { analyzeTerritorialCoverage } from '@/lib/formatters';
 
 // ✅ CONSTANTES FUERA DEL RENDER
 const STATUS_LABELS: Record<string, string> = {
@@ -34,6 +35,9 @@ export function ProjectCard({ project }: ProjectCardProps) {
   // Color seguro con fallback
   const statusKey = project.status as keyof typeof STATUS_COLORS;
   const statusColor = STATUS_COLORS[statusKey] || APP_COLORS.neutral;
+
+  // Analizar cobertura territorial
+  const territorial = analyzeTerritorialCoverage(project.alcaldias);
 
   return (
     <Dialog>
@@ -71,7 +75,12 @@ export function ProjectCard({ project }: ProjectCardProps) {
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="h-3.5 w-3.5 shrink-0" />
-                <Small className="truncate">{project.ubicacion}</Small>
+                <Small className="truncate">
+                  <span className="font-medium">{territorial.display}</span>
+                  {territorial.type !== 'unknown' && territorial.count > 1 && (
+                    <span className="text-xs text-muted-foreground/70 ml-1">({territorial.count})</span>
+                  )}
+                </Small>
               </div>
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-3.5 w-3.5 shrink-0" />

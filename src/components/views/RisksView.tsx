@@ -65,8 +65,8 @@ const SemaphoreIcon = React.memo(({ label, status, Icon }: { label: string, stat
 });
 
 const MobileProjectCard = React.memo(({ project, isExpanded, onToggle }: { project: any, isExpanded: boolean, onToggle: () => void }) => {
-  const budgetExecution = project.presupuesto > 0 ? ((project.avance / 100) * project.presupuesto) : 0;
-  const budgetExecutionPct = project.presupuesto > 0 ? (budgetExecution / project.presupuesto) * 100 : 0;
+  const budgetExecution = project.presupuesto > 0 ? ((project.avance_financiero / 100) * project.presupuesto) : 0;
+  const budgetExecutionPct = project.avance_financiero;
 
   return (
     <div className="border border-border rounded-lg p-4 mb-3 bg-card shadow-sm animate-fade-in">
@@ -77,6 +77,16 @@ const MobileProjectCard = React.memo(({ project, isExpanded, onToggle }: { proje
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <Badge variant="outline" className="whitespace-nowrap shadow-none text-[10px] h-5">
                 Score: {project.score.toFixed(1)}
+              </Badge>
+              <Badge 
+                variant="outline" 
+                className="whitespace-nowrap text-[10px] h-5 font-bold"
+                style={{ 
+                  borderColor: PRIORITY_COLORS[project.prioridad_label as keyof typeof PRIORITY_COLORS],
+                  color: PRIORITY_COLORS[project.prioridad_label as keyof typeof PRIORITY_COLORS]
+                }}
+              >
+                {project.prioridad_label.replace('_', ' ').toUpperCase()}
               </Badge>
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider"
                 style={{
@@ -127,9 +137,11 @@ const MobileProjectCard = React.memo(({ project, isExpanded, onToggle }: { proje
         {/* Expandible */}
         {isExpanded && (
           <div className="pt-3 border-t border-border/50 space-y-3 animate-slide-down">
-            {project.riesgos.length > 0 && (
+            {project.riesgos && project.riesgos.length > 0 ? (
               <div className="bg-muted/30 p-3 rounded-md">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Riesgos</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                  Riesgos Identificados ({project.riesgos.length})
+                </p>
                 <ul className="space-y-2">
                   {project.riesgos.map((riesgo: string, idx: number) => (
                     <li key={idx} className="flex items-start gap-2 text-xs">
@@ -138,6 +150,10 @@ const MobileProjectCard = React.memo(({ project, isExpanded, onToggle }: { proje
                     </li>
                   ))}
                 </ul>
+              </div>
+            ) : (
+              <div className="bg-muted/30 p-3 rounded-md text-center">
+                <p className="text-xs text-muted-foreground">Sin riesgos específicos registrados</p>
               </div>
             )}
           </div>
@@ -265,7 +281,7 @@ export function RisksView() {
             <span className="inline sm:hidden">Matriz de Riesgos</span>
           </CardTitle>
           <Subtitle className="text-xs md:text-sm mt-1 sm:mt-2">
-            Proyectos con Viabilidad Baja (1+ Rojos) o Prioridad Alta con Viabilidad Media (2+ Amarillos).
+            Proyectos con Viabilidad Baja o Media y Prioridad Alta (Score ≥ 3.0).
           </Subtitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -304,8 +320,8 @@ export function RisksView() {
                   <tr><td colSpan={6} className="py-12 text-center text-muted-foreground">Excelente. No hay riesgos críticos.</td></tr>
                 ) : (
                   matrixProjects.map(project => {
-                    const budgetExec = project.presupuesto > 0 ? (project.avance / 100) * 100 : 0;
-                    const ejecutadoMonto = (project.avance / 100) * project.presupuesto;
+                    const budgetExec = project.avance_financiero;
+                    const ejecutadoMonto = (project.avance_financiero / 100) * project.presupuesto;
                     return (
                       <tr key={project.id} className="hover:bg-muted/30 transition-colors group">
                         <td className="py-4 px-4 align-top">
@@ -315,7 +331,19 @@ export function RisksView() {
                           </div>
                         </td>
                         <td className="py-4 px-4 align-top">
-                          <Badge variant="outline" className="shadow-none">Score: {project.score.toFixed(1)}</Badge>
+                          <div className="flex flex-col gap-1.5">
+                            <Badge variant="outline" className="shadow-none w-fit">Score: {project.score.toFixed(1)}</Badge>
+                            <Badge 
+                              variant="outline" 
+                              className="text-[10px] font-bold w-fit"
+                              style={{ 
+                                borderColor: PRIORITY_COLORS[project.prioridad_label as keyof typeof PRIORITY_COLORS],
+                                color: PRIORITY_COLORS[project.prioridad_label as keyof typeof PRIORITY_COLORS]
+                              }}
+                            >
+                              {project.prioridad_label.replace('_', ' ').toUpperCase()}
+                            </Badge>
+                          </div>
                         </td>
                         <td className="py-4 px-4 align-top">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border uppercase tracking-wider"

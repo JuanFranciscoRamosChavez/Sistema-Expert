@@ -8,18 +8,30 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, TrendingUp } from "lucide-react";
 import { 
   APP_COLORS, 
   PRIORITY_COLORS, 
   STATUS_COLORS 
-} from "@/lib/theme"; // ✅ Importación correcta desde el tema central
+} from "@/lib/theme";
 import { H3, Subtitle } from "@/components/ui/typography";
-import { useCriticalProjects } from "@/hooks/useCriticalProjects";
-import { Project } from "@/types";
+import { useFilteredProjects } from "@/hooks/useFilteredProjects";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function CriticalProjectsTable() {
-  const { data: criticalProjects = [], isLoading } = useCriticalProjects(5);
+  // ✅ FILTRADO INTELIGENTE:
+  // 1. score_range: 'alta' -> Trae proyectos con prioridad Alta, Muy Alta o Crítica (puntuación >= 3).
+  // 2. viabilidad baja o media -> Proyectos que requieren intervención.
+  // 3. ordering: '-presupuesto_modificado' -> Los ordena por impacto financiero.
+  // 4. page_size: 10 -> Top 10 para mejor visibilidad.
+  const { data: projectsData, isLoading } = useFilteredProjects({ 
+    page_size: 10, 
+    ordering: '-presupuesto_modificado',
+    score_range: 'alta',
+    viabilidad: 'baja,media'
+  });
+
+  const criticalProjects = projectsData?.results || [];
 
   if (isLoading) {
     return <TableSkeleton />;
@@ -30,100 +42,112 @@ export function CriticalProjectsTable() {
   }
 
   return (
-    <div className="bg-card rounded-xl border border-border shadow-sm h-full flex flex-col animate-fade-in delay-300">
+    <div className="bg-card rounded-xl border border-border shadow-sm h-full flex flex-col animate-fade-in delay-300 overflow-hidden">
       
       {/* Header */}
-      <div className="p-6 border-b border-border flex justify-between items-center">
+      <div className="p-3 sm:p-4 lg:p-6 border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
         <div>
-          <H3 className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5" style={{ color: APP_COLORS.danger }} />
+          <H3 className="flex items-center gap-2 text-foreground">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
             Atención Prioritaria
           </H3>
-          <Subtitle>Proyectos con alto nivel de riesgo o urgencia crítica</Subtitle>
+          <Subtitle>Proyectos con prioridad alta/crítica y viabilidad baja/media</Subtitle>
         </div>
-        <Badge variant="outline" className="text-xs font-mono">
-          {criticalProjects.length} Detectados
+        <Badge variant="outline" className="flex text-xs font-mono gap-1.5 py-1 self-end sm:self-auto">
+          <TrendingUp className="h-3 w-3" />
+          Top 10
         </Badge>
       </div>
 
       {/* Table Content */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto overscroll-contain
+        [&::-webkit-scrollbar]:w-2 
+        [&::-webkit-scrollbar]:h-2
+        [&::-webkit-scrollbar-track]:bg-transparent 
+        [&::-webkit-scrollbar-thumb]:bg-border
+        [&::-webkit-scrollbar-thumb]:rounded-full
+        [&::-webkit-scrollbar-thumb]:hover:bg-border/70">
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent border-border">
-              <TableHead className="w-[40%]">Proyecto / Responsable</TableHead>
-              <TableHead>Estatus</TableHead>
-              <TableHead>Avance Físico</TableHead>
-              <TableHead className="text-right">Prioridad</TableHead>
+            <TableRow className="hover:bg-transparent border-border bg-muted/30">
+              <TableHead className="w-[35%] font-semibold text-[10px] sm:text-xs uppercase tracking-wider">Proyecto</TableHead>
+              <TableHead className="font-semibold text-[10px] sm:text-xs uppercase tracking-wider hidden lg:table-cell">Eje Institucional</TableHead>
+              <TableHead className="font-semibold text-[10px] sm:text-xs uppercase tracking-wider hidden sm:table-cell">Estatus</TableHead>
+              <TableHead className="font-semibold text-[10px] sm:text-xs uppercase tracking-wider">Avance</TableHead>
+              <TableHead className="text-right font-semibold text-[10px] sm:text-xs uppercase tracking-wider pr-3 sm:pr-6">Prioridad</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {criticalProjects.map((project) => {
-              // ✅ LÓGICA VISUAL CENTRALIZADA:
-              // Usamos las constantes del tema. Si la key no existe, fallback a neutral/warning.
+              // Colores dinámicos
+              const statusKey = (project.status || 'planificado') as keyof typeof STATUS_COLORS;
+              const statusColor = STATUS_COLORS[statusKey] || APP_COLORS.neutral;
               
-              // 1. Color de Estatus (Viene de theme.ts -> STATUS_COLORS)
-              // project.status viene normalizado del backend ('en_riesgo', 'retrasado', etc.)
-              const statusColor = STATUS_COLORS[project.status as keyof typeof STATUS_COLORS] || APP_COLORS.warning;
-              
-              // 2. Color de Prioridad (Viene de theme.ts -> PRIORITY_COLORS)
-              const priorityColor = PRIORITY_COLORS[project.prioridad as keyof typeof PRIORITY_COLORS] || APP_COLORS.neutral;
+              const priorityKey = (project.prioridad || 'media') as keyof typeof PRIORITY_COLORS;
+              const priorityColor = PRIORITY_COLORS[priorityKey] || APP_COLORS.neutral;
 
               return (
-                <TableRow key={project.id} className="border-border hover:bg-muted/30">
+                <TableRow key={project.id} className="border-border hover:bg-muted/40 transition-colors">
                   
-                  {/* Columna: Nombre */}
-                  <TableCell className="font-medium">
-                    <div className="flex flex-col gap-1">
-                      <span className="font-semibold text-foreground line-clamp-1" title={project.nombre}>
+                  {/* Nombre y Responsable */}
+                  <TableCell className="py-2 sm:py-3">
+                    <div className="flex flex-col gap-0.5 sm:gap-1">
+                      <span className="font-medium text-xs sm:text-sm text-foreground line-clamp-1" title={project.nombre}>
                         {project.nombre}
                       </span>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary/50" />
-                        {project.responsable || "Sin Asignar"}
-                      </span>
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground">
+                        <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-border shrink-0" />
+                        <span className="truncate max-w-[140px] sm:max-w-[180px]" title={project.responsable}>
+                          {project.responsable || "Sin Asignar"}
+                        </span>
+                      </div>
                     </div>
                   </TableCell>
 
-                  {/* Columna: Estatus (Badge Dinámico usando el Tema) */}
-                  <TableCell>
+                  {/* Eje Institucional */}
+                  <TableCell className="hidden lg:table-cell">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2" title={project.eje_institucional}>
+                      {project.eje_institucional || "No especificado"}
+                    </span>
+                  </TableCell>
+
+                  {/* Estatus */}
+                  <TableCell className="hidden sm:table-cell">
                     <div 
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border"
+                      className="inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold uppercase border transition-colors"
                       style={{ 
                         color: statusColor,
-                        borderColor: `${statusColor}40`,     // Borde sutil
-                        backgroundColor: `${statusColor}10`  // Fondo muy suave
+                        borderColor: `${statusColor}30`,
+                        backgroundColor: `${statusColor}08`
                       }}
                     >
-                      <AlertCircle className="w-3 h-3" />
-                      <span className="capitalize">{project.status.replace(/_/g, ' ')}</span>
+                      <span>{(project.status || '').replace(/_/g, ' ')}</span>
                     </div>
                   </TableCell>
 
-                  {/* Columna: Avance */}
+                  {/* Barra de Progreso */}
                   <TableCell>
-                    <div className="w-full max-w-[140px] space-y-1.5">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground font-medium">Progreso</span>
-                        <span className="font-bold text-foreground">{project.avance.toFixed(1)}%</span>
+                    <div className="w-full max-w-[100px] sm:max-w-[120px] space-y-1 sm:space-y-1.5">
+                      <div className="flex justify-between text-[9px] sm:text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                        <span>Real</span>
+                        <span style={{ color: statusColor }}>{project.avance.toFixed(0)}%</span>
                       </div>
-                      {/* Usamos el color del estatus para la barra de progreso */}
                       <Progress 
                         value={project.avance} 
-                        className="h-2 bg-muted" 
+                        className="h-1 sm:h-1.5 bg-secondary" 
                         indicatorColor={statusColor} 
                       />
                     </div>
                   </TableCell>
 
-                  {/* Columna: Prioridad (Badge Dinámico usando el Tema) */}
-                  <TableCell className="text-right">
+                  {/* Badge de Prioridad */}
+                  <TableCell className="text-right pr-3 sm:pr-6">
                     <Badge 
                       variant="outline" 
-                      className="uppercase tracking-wider text-[10px] font-bold border"
+                      className="uppercase tracking-wider text-[9px] sm:text-[10px] font-bold border h-5 sm:h-6 px-1.5 sm:px-2.5 ml-auto w-fit"
                       style={{
                         color: priorityColor,
-                        borderColor: priorityColor,
+                        borderColor: `${priorityColor}40`,
                         backgroundColor: `${priorityColor}10`
                       }}
                     >
@@ -141,16 +165,26 @@ export function CriticalProjectsTable() {
   );
 }
 
-// --- SUB-COMPONENTES (Sin cambios lógicos, solo UI) ---
+// --- HELPERS VISUALES ---
 
 function TableSkeleton() {
   return (
-    <div className="bg-card rounded-xl border border-border shadow-sm p-6">
-      <div className="h-6 w-48 bg-muted animate-pulse rounded mb-2" />
-      <div className="h-4 w-64 bg-muted animate-pulse rounded mb-4" />
-      <div className="space-y-3">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-16 w-full bg-muted animate-pulse rounded" />
+    <div className="bg-card rounded-xl border border-border shadow-sm p-6 h-full flex flex-col">
+      <div className="flex justify-between mb-6">
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <Skeleton className="h-6 w-20 rounded-full" />
+      </div>
+      <div className="space-y-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="flex items-center justify-between gap-4">
+            <Skeleton className="h-10 w-[40%]" />
+            <Skeleton className="h-6 w-20 hidden sm:block" />
+            <Skeleton className="h-6 w-24" />p
+            <Skeleton className="h-6 w-16" />
+          </div>
         ))}
       </div>
     </div>
@@ -160,12 +194,12 @@ function TableSkeleton() {
 function EmptyState() {
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm p-8 flex flex-col items-center justify-center text-center h-full min-h-[300px]">
-      <div className="bg-emerald-500/10 p-4 rounded-full mb-3">
+      <div className="bg-emerald-500/10 p-4 rounded-full mb-3 ring-1 ring-emerald-500/20">
         <CheckCircle2 className="h-8 w-8 text-emerald-600" />
       </div>
-      <H3 className="mt-3">Todo bajo control</H3>
-      <Subtitle className="mt-1 max-w-[250px]">
-        No se detectaron proyectos con riesgo alto o urgencia crítica.
+      <H3 className="mt-3 text-lg font-semibold">Excelente Estado</H3>
+      <Subtitle className="mt-1 max-w-[320px]">
+        No hay proyectos que requieran atención prioritaria. Todos los proyectos de alta prioridad tienen viabilidad alta.
       </Subtitle>
     </div>
   );

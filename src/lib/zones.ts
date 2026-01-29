@@ -2,11 +2,11 @@
 import { ZONE_PALETTE } from './theme';
 
 export const ZONA_MAPPING: Record<string, string[]> = {
-	'Zona Norte': ['Gustavo A. Madero', 'Azcapotzalco', 'Tláhuac', 'Milpa Alta'],
-	'Zona Sur': ['Coyoacán', 'Tlalpan', 'Xochimilco', 'La Magdalena Contreras'],
-	'Centro Histórico': ['Cuauhtémoc', 'Benito Juárez'],
-	'Zona Oriente': ['Iztapalapa', 'Iztacalco', 'Venustiano Carranza'],
-	'Zona Poniente': ['Miguel Hidalgo', 'Cuajimalpa de Morelos', 'Álvaro Obregón']
+	'Zona Norte': ['Gustavo A. Madero', 'Azcapotzalco'],
+	'Zona Sur': ['Tlalpan', 'Xochimilco', 'Milpa Alta'],
+	'Centro Histórico': ['Cuauhtémoc', 'Benito Juárez', 'Coyoacán'],
+	'Zona Oriente': ['Iztapalapa', 'Iztacalco', 'Venustiano Carranza', 'Tláhuac'],
+	'Zona Poniente': ['Miguel Hidalgo', 'Cuajimalpa de Morelos', 'Álvaro Obregón', 'La Magdalena Contreras']
 };
 
 // Mapeamos las llaves del diccionario de zonas a los colores del tema

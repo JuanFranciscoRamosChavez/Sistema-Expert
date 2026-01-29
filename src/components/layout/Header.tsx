@@ -18,7 +18,7 @@ interface HeaderProps {
 export function Header({ onMenuClick }: HeaderProps) {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-      <div className="flex h-16 items-center gap-4 px-4 md:px-6">
+      <div className="flex h-14 sm:h-16 items-center gap-2 sm:gap-4 px-3 sm:px-4 md:px-6">
         <Button
           variant="ghost"
           size="icon"
@@ -38,17 +38,17 @@ export function Header({ onMenuClick }: HeaderProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]" variant="danger">
+              <Button variant="ghost" size="icon" className="relative h-9 w-9 sm:h-10 sm:w-10">
+                <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
+                <Badge className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 h-4 w-4 sm:h-5 sm:w-5 p-0 flex items-center justify-center text-[9px] sm:text-[10px]" variant="danger">
                   3
                 </Badge>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuContent align="end" className="w-[280px] sm:w-80">
               <DropdownMenuLabel>Notificaciones</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="flex flex-col items-start gap-1 py-3">
@@ -69,19 +69,19 @@ export function Header({ onMenuClick }: HeaderProps) {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant="ghost" size="icon">
-            <Settings className="h-5 w-5" />
+          <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-10 sm:w-10 hidden sm:flex">
+            <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="gap-2">
-                <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-                  <User className="h-4 w-4 text-primary-foreground" />
+              <Button variant="ghost" className="gap-1.5 sm:gap-2 h-9 sm:h-10 px-2 sm:px-3">
+                <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-primary flex items-center justify-center">
+                  <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary-foreground" />
                 </div>
                 <div className="hidden md:block text-left">
-                  <p className="text-sm font-medium">Secretario12</p>
-                  <p className="text-xs text-muted-foreground">Administrador</p>
+                  <p className="text-xs sm:text-sm font-medium">Secretario12</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">Administrador</p>
                 </div>
               </Button>
             </DropdownMenuTrigger>

@@ -2,20 +2,71 @@ import pandas as pd
 import numpy as np
 import re
 
-# 1. Catálogo de Escalas
+# ==================== CATÁLOGO DE ESCALAS ====================
+# Mapeo completo de todas las variantes textuales a valores numéricos 1-5
 CATALOGO_ESCALAS = {
-	"muy bajo": 1, 
-	"bajo": 2, 
-	"regular": 3, "medio": 3, "media": 3,
-	"alto": 4, "alta": 4, 
-	"muy alto": 5, "muy alta": 5,
+	# Escala 1: Muy Bajo
+	"1": 1,
+	"muy bajo": 1,
+	"muy baja": 1,
+	"minimo": 1,
+	"minima": 1,
+	"1 - muy bajo": 1,
+	"1-muy bajo": 1,
+	
+	# Escala 2: Bajo
+	"2": 2,
+	"bajo": 2,
+	"baja": 2,
+	"2 - bajo": 2,
+	"2-bajo": 2,
+	
+	# Escala 3: Regular/Medio
+	"3": 3,
+	"regular": 3,
+	"medio": 3,
+	"media": 3,
+	"moderado": 3,
+	"moderada": 3,
+	"3 - regular": 3,
+	"3-regular": 3,
+	
+	# Escala 4: Alto
+	"4": 4,
+	"alto": 4,
+	"alta": 4,
+	"4 - alto": 4,
+	"4-alto": 4,
+	
+	# Escala 5: Muy Alto
+	"5": 5,
+	"muy alto": 5,
+	"muy alta": 5,
+	"critico": 5,
+	"critica": 5,
+	"crítico": 5,
+	"crítica": 5,
+	"maximo": 5,
+	"maxima": 5,
+	"urgente": 5,
+	"5 - muy alto": 5,
+	"5-muy alto": 5,
 }
 
-def clean_money(valor):
+def clean_money(valor, es_mdp=True):
 	"""
 	Limpia y estandariza montos financieros.
-	Entrada: 35999.76998888 -> Salida: 35999.77
-	Entrada: "$ 1,990.6"    -> Salida: 1990.60
+	
+	Args:
+		valor: Valor a limpiar (puede ser número, string con símbolos, etc)
+		es_mdp: Si True, asume que el valor está en Millones De Pesos (MDP)
+		        y multiplica por 1,000,000. Default: True
+	
+	Ejemplos:
+		clean_money(428.0948343, es_mdp=True) -> 428094834.30  (428.09 MDP)
+		clean_money("$ 1,990.6", es_mdp=True) -> 1990600000.00 (1,990.6 MDP)
+		clean_money("2,569.1", es_mdp=True)   -> 2569100000.00 (2,569.1 MDP)
+		clean_money(410.47, es_mdp=False)     -> 410.47        (valor directo)
 	"""
 	if pd.isna(valor): return 0.0
 	
@@ -25,6 +76,11 @@ def clean_money(valor):
 	try:
 		# Convertir a float
 		numero = float(val_str)
+		
+		# Si es MDP, multiplicar por 1 millón
+		if es_mdp:
+			numero = numero * 1_000_000
+		
 		# Redondear a 2 decimales estrictos (regla financiera)
 		return round(numero, 2)
 	except:
@@ -57,14 +113,225 @@ def clean_percentage(valor):
 		return 0.0
 
 def interpretar_escala_flexible(valor):
-	if pd.isna(valor): return 1
+	"""
+	Interpreta cualquier formato de escala 1-5 y retorna un valor numérico.
+	
+	Soporta:
+	- Números directos: 1, 2, 3, 4, 5
+	- Texto completo: "5 - Muy alto", "4 - Alto", "3 - Regular", etc.
+	- Texto simple: "muy alto", "bajo", "regular", etc.
+	- Variantes: "critico", "urgente", "moderado", etc.
+	
+	Args:
+		valor: Valor de la celda (puede ser int, float, str, None)
+	
+	Returns:
+		int: Valor entre 1 y 5 (default: 1 si no se puede interpretar)
+	
+	Ejemplos:
+		interpretar_escala_flexible(5) -> 5
+		interpretar_escala_flexible("5 - Muy alto") -> 5
+		interpretar_escala_flexible("Muy alto") -> 5
+		interpretar_escala_flexible("Alto") -> 4
+		interpretar_escala_flexible("Regular") -> 3
+		interpretar_escala_flexible(None) -> 1
+	"""
+	# Caso 1: Valor nulo o vacío
+	if pd.isna(valor) or valor == '':
+		return 1
+	
+	# Caso 2: Ya es un número entero válido (1-5)
+	if isinstance(valor, (int, np.integer)) and 1 <= valor <= 5:
+		return int(valor)
+	
+	# Caso 3: Es un float que representa un entero
+	if isinstance(valor, (float, np.floating)):
+		valor_int = int(round(valor))
+		if 1 <= valor_int <= 5:
+			return valor_int
+		# Si el float está fuera de rango, intentar como texto
+	
+	# Caso 4: Convertir a string y limpiar
 	val_str = str(valor).strip().lower()
+	
+	# Remover caracteres especiales comunes
+	val_str = val_str.replace('–', '-').replace('—', '-').replace('_', ' ')
+	
+	# Caso 5: Buscar número explícito (1-5) al inicio o entre delimitadores
+	# Patrón: busca 1, 2, 3, 4, o 5 como palabra completa o al inicio
+	match = re.search(r'^([1-5])\b', val_str)
+	if match:
+		return int(match.group(1))
+	
+	# Caso 6: Buscar en el catálogo de escalas textuales
+	for clave, numero in CATALOGO_ESCALAS.items():
+		if clave in val_str:
+			return numero
+	
+	# Caso 7: Buscar cualquier dígito 1-5 en el string
 	match = re.search(r'\b([1-5])\b', val_str)
-	if match: return int(match.group(1))
-	for key, num in CATALOGO_ESCALAS.items():
-		if key in val_str: return num
+	if match:
+		return int(match.group(1))
+	
+	# Caso 8: Default (no se pudo interpretar)
 	return 1
 
+def calcular_puntuacion_ponderada(alineacion, impacto, urgencia, viabilidad, recursos, riesgo, dependencias):
+	"""
+	Calcula la puntuación ponderada final de un proyecto.
+	
+	Promedio simple de los 7 criterios de priorización (escala 1-5).
+	Todos los criterios tienen el mismo peso (1/7).
+	
+	✅ ESCALA UNIFORME PARA TODOS LOS CRITERIOS:
+	- 1 = Muy bajo / Mínimo (peor)
+	- 2 = Bajo
+	- 3 = Regular / Medio
+	- 4 = Alto
+	- 5 = Muy alto / Máximo (mejor)
+	
+	Esto aplica para TODOS los criterios incluyendo RIESGO y DEPENDENCIAS:
+	- RIESGO: 1=muy bajo riesgo (mejor), 5=muy alto riesgo (peor en realidad, pero se califica alto)
+	- DEPENDENCIAS: 1=muy bajo nivel de dependencias, 5=muy alto nivel de dependencias
+	
+	Args:
+		alineacion: Alineación estratégica (1-5)
+		impacto: Impacto social (1-5)
+		urgencia: Nivel de urgencia (1-5)
+		viabilidad: Viabilidad de ejecución (1-5)
+		recursos: Recursos disponibles (1-5)
+		riesgo: Nivel de riesgo (1-5)
+		dependencias: Nivel de dependencias (1-5)
+	
+	Returns:
+		float: Puntuación entre 1.0 y 5.0 (redondeado a 2 decimales)
+	
+	Rangos de prioridad:
+		- 4.5 - 5.0: Crítica
+		- 3.5 - 4.4: Muy Alta
+		- 2.5 - 3.4: Alta
+		- 1.5 - 2.4: Media
+		- 1.0 - 1.4: Baja
+	
+	Ejemplo:
+		calcular_puntuacion_ponderada(5, 5, 5, 5, 5, 5, 5) -> 5.0 (Crítica)
+		calcular_puntuacion_ponderada(3, 3, 3, 3, 3, 3, 3) -> 3.0 (Alta)
+		calcular_puntuacion_ponderada(1, 1, 1, 1, 1, 1, 1) -> 1.0 (Baja)
+	"""
+	criterios = [alineacion, impacto, urgencia, viabilidad, recursos, riesgo, dependencias]
+	
+	# Asegurar que todos los valores sean válidos (1-5)
+	# Si es None o 0, usar 1 como default
+	validos = []
+	for c in criterios:
+		if c is None or c == 0:
+			validos.append(1)
+		elif 1 <= c <= 5:
+			validos.append(c)
+		else:
+			# Si está fuera de rango, ajustar
+			validos.append(max(1, min(5, c)))
+	
+	# Calcular promedio simple (SIN inversión)
+	promedio = sum(validos) / 7
+	
+	# Redondear a 2 decimales
+	return round(promedio, 2)
+
+def obtener_etiqueta_prioridad(puntuacion):
+	"""
+	Convierte una puntuación numérica en etiqueta de prioridad.
+	
+	Args:
+		puntuacion: Puntuación entre 1.0 y 5.0
+	
+	Returns:
+		str: 'critica', 'muy_alta', 'alta', 'media', o 'baja'
+	"""
+	if puntuacion >= 4.5:
+		return 'critica'
+	elif puntuacion >= 3.5:
+		return 'muy_alta'
+	elif puntuacion >= 2.5:
+		return 'alta'
+	elif puntuacion >= 1.5:
+		return 'media'
+	else:
+		return 'baja'
+def calcular_viabilidad_global(obra):
+	"""
+	Calcula la viabilidad global de un proyecto basado en los 5 semáforos.
+	
+	Reglas:
+	- 1+ semáforo ROJO → Viabilidad BAJA
+	- 2+ semáforos AMARILLOS → Viabilidad MEDIA
+	- Resto (todos verdes/grises) → Viabilidad ALTA
+	
+	Args:
+		obra: Instancia del modelo Obra
+	
+	Returns:
+		str: 'alta', 'media', 'baja'
+	"""
+	semaforos = [
+		(obra.viabilidad_tecnica_semaforo or '').upper(),
+		(obra.viabilidad_presupuestal_semaforo or '').upper(),
+		(obra.viabilidad_juridica_semaforo or '').upper(),
+		(obra.viabilidad_temporal_semaforo or '').upper(),
+		(obra.viabilidad_administrativa_semaforo or '').upper()
+	]
+	
+	rojos = sum(1 for s in semaforos if s == 'ROJO')
+	amarillos = sum(1 for s in semaforos if s == 'AMARILLO')
+	
+	if rojos >= 1:
+		return 'baja'
+	if amarillos >= 2:
+		return 'media'
+	return 'alta'
+
+def calcular_estatus_proyecto(obra):
+	"""
+	Calcula el estatus de un proyecto según reglas de negocio.
+	
+	Orden jerárquico de evaluación:
+	1. Completado: Avance físico = 100%
+	2. En Riesgo: Campo riesgo > 3 (Alto/Muy Alto)
+	3. Retrasado: Fecha inicio real pasada pero sin avance físico
+	4. En Ejecución: Avance físico > 0 pero < 100%
+	5. Planificado: Sin fecha de inicio real o fecha futura
+	
+	Args:
+		obra: Instancia del modelo Obra
+	
+	Returns:
+		str: 'completado', 'en_riesgo', 'retrasado', 'en_ejecucion', 'planificado'
+	"""
+	from datetime import date
+	
+	avance_fisico = obra.avance_fisico_pct or 0
+	riesgo = obra.riesgo_nivel or 0
+	fecha_inicio_real = obra.fecha_inicio_real
+	
+	# 1. Completado: Avance físico al 100%
+	if avance_fisico >= 100:
+		return 'completado'
+	
+	# 2. En Riesgo: Puntuación de riesgo > 3 (4 o 5 = Alto/Muy Alto)
+	if riesgo > 3:
+		return 'en_riesgo'
+	
+	# 3. Retrasado: Tiene fecha de inicio real pasada pero sin avance
+	if fecha_inicio_real and fecha_inicio_real <= date.today():
+		if avance_fisico == 0:
+			return 'retrasado'
+	
+	# 4. En Ejecución: Tiene avance físico pero no está completo
+	if avance_fisico > 0:
+		return 'en_ejecucion'
+	
+	# 5. Planificado: Sin fecha de inicio real o fecha futura
+	return 'planificado'
 def clean_beneficiarios_advanced(valor):
 	"""
 	Limpia texto de beneficiarios detectando magnitudes y abreviaturas.
@@ -105,5 +372,41 @@ def clean_beneficiarios_advanced(valor):
 			return int(numero * multiplier)
 		except ValueError:
 			return 0
+
+
+# ==================== NORMALIZACIÓN DE TEXTO (para búsquedas) ====================
+
+def normalizar_texto(texto):
+	"""
+	Normaliza texto removiendo acentos, ñ->n, y convirtiendo a minúsculas.
+	Útil para búsquedas flexibles que ignoren tildes y diéresis.
+	
+	Ejemplos:
+		'Línea de Conducción' -> 'linea de conduccion'
+		'Niño' -> 'nino'
+		'Área' -> 'area'
+	"""
+	import unicodedata
+	
+	if not texto:
+		return ''
+	
+	# Convertir a minúsculas
+	texto = str(texto).lower()
+	
+	# Remover acentos/tildes usando NFD (Normalization Form Decomposition)
+	# Esto separa caracteres acentuados en base + acento
+	texto_nfd = unicodedata.normalize('NFD', texto)
+	
+	# Filtrar solo caracteres que NO sean marcas diacríticas (acentos)
+	texto_sin_acentos = ''.join(
+		char for char in texto_nfd 
+		if unicodedata.category(char) != 'Mn'  # Mn = Marca No espaciadora (tildes)
+	)
+	
+	# Normalizar ñ -> n (opcional, algunos prefieren mantenerla)
+	# texto_sin_acentos = texto_sin_acentos.replace('ñ', 'n')
+	
+	return texto_sin_acentos
 			
 	return 0

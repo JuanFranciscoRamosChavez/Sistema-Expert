@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from .models import Obra
 from .serializers import ObraSerializer
 from .services import calculate_territorial_stats
+from .utils import normalizar_texto
 
 # ==================== PAGINACIÓN PERSONALIZADA ====================
 
@@ -169,7 +170,7 @@ class ObraFilteredViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Obra.objects.all()
     serializer_class = ObraSerializer
     pagination_class = StandardResultsSetPagination
-    filter_backends = [filters.OrderingFilter, filters.SearchFilter]
+    filter_backends = [filters.OrderingFilter]  # Solo ordenamiento, búsqueda manual
     
     # Campos permitidos para ordenamiento
     ordering_fields = [
@@ -180,30 +181,122 @@ class ObraFilteredViewSet(viewsets.ReadOnlyModelViewSet):
     ]
     ordering = ['-fecha_inicio_prog']  # Default ordering
     
-    # Campos para búsqueda de texto completo
-    search_fields = [
-        'programa', 'ubicacion_especifica', 'area_responsable',
-        'tipo_obra', 'responsable_operativo'
-    ]
+    def _generate_search_variants(self, term):
+        """
+        Genera variantes de búsqueda con y sin acentos.
+        Ejemplo: "línea" -> ["linea", "línea"]
+        """
+        variants = [term.strip()]  # Original
+        
+        # Agregar versión sin acentos
+        normalized = normalizar_texto(term)
+        if normalized != term.lower():
+            variants.append(normalized)
+        
+        # Agregar variantes comunes de palabras con acentos
+        replacements = {
+            'a': ['á', 'a'], 'e': ['é', 'e'], 'i': ['í', 'i'],
+            'o': ['ó', 'o'], 'u': ['ú', 'ü', 'u'], 'n': ['ñ', 'n']
+        }
+        
+        # Si el término tiene letras que podrían tener acento, agregar esas variantes
+        term_lower = term.lower()
+        for base, variants_list in replacements.items():
+            if base in term_lower:
+                # Crear variante con acento
+                for variant in variants_list:
+                    if variant != base:
+                        new_variant = term_lower.replace(base, variant)
+                        if new_variant not in variants:
+                            variants.append(new_variant)
+        
+        return list(set(variants))  # Eliminar duplicados
     
     def get_queryset(self):
         """
         Aplica filtros personalizados desde query parameters.
-        Postgres hace el trabajo pesado, Python solo orquesta.
+        Incluye búsqueda flexible que ignora acentos y errores ortográficos.
         """
         qs = super().get_queryset()
         
+        # BÚSQUEDA FLEXIBLE (antes de otros filtros para optimizar)
+        search_term = self.request.query_params.get('search')
+        if search_term:
+            # Normalizar término de búsqueda (sin acentos, minúsculas)
+            search_normalized = normalizar_texto(search_term)
+            
+            # ESTRATEGIA: Como SQLite no tiene unaccent, buscamos múltiples variantes
+            # del término con y sin acentos comunes
+            search_variants = self._generate_search_variants(search_term)
+            
+            # Campos donde buscar
+            search_query = Q()
+            search_fields = [
+                'programa', 'ubicacion_especifica', 'area_responsable',
+                'tipo_obra', 'responsable_operativo'
+            ]
+            
+            # Buscar cada variante en cada campo
+            for variant in search_variants:
+                for field in search_fields:
+                    search_query |= Q(**{f'{field}__icontains': variant})
+            
+            qs = qs.filter(search_query).distinct()
+        
         # FILTRO 1: Estado del proyecto
+        # IMPORTANTE: Como estatus_general se calcula dinámicamente en el serializer,
+        # necesitamos aplicar la misma lógica aquí usando filtros de Django
         status = self.request.query_params.get('status')
-        if status and status != 'todos':
-            qs = qs.filter(estatus_general__iexact=status)
+        if status and status != 'todos' and status != 'all':
+            status_normalized = status.lower().strip().replace(' ', '_')
+            
+            # Aplicar lógica de cálculo de estatus usando Query expressions
+            from datetime import date
+            today = date.today()
+            
+            if status_normalized == 'completado':
+                # Avance físico >= 100%
+                qs = qs.filter(avance_fisico_pct__gte=100)
+            
+            elif status_normalized == 'en_riesgo':
+                # Riesgo > 3 y no completado
+                qs = qs.filter(riesgo_nivel__gt=3, avance_fisico_pct__lt=100)
+            
+            elif status_normalized == 'retrasado':
+                # Fecha inicio real pasada, sin avance, no en riesgo, no completado
+                qs = qs.filter(
+                    fecha_inicio_real__lte=today,
+                    avance_fisico_pct=0,
+                    riesgo_nivel__lte=3
+                )
+            
+            elif status_normalized == 'en_ejecucion':
+                # Tiene avance > 0, no completado, no en riesgo alto
+                qs = qs.filter(
+                    avance_fisico_pct__gt=0,
+                    avance_fisico_pct__lt=100,
+                    riesgo_nivel__lte=3
+                )
+            
+            elif status_normalized == 'planificado':
+                # Sin fecha inicio real o fecha futura, sin avance
+                qs = qs.filter(
+                    Q(fecha_inicio_real__isnull=True) | Q(fecha_inicio_real__gt=today),
+                    avance_fisico_pct=0,
+                    riesgo_nivel__lte=3
+                )
         
         # FILTRO 2: Dirección/Área responsable
         direccion = self.request.query_params.get('direccion')
         if direccion and direccion != 'todos':
             qs = qs.filter(area_responsable__icontains=direccion)
         
-        # FILTRO 3: Próximas entregas (días hacia el futuro)
+        # FILTRO 3: Eje Institucional
+        eje_institucional = self.request.query_params.get('eje_institucional')
+        if eje_institucional and eje_institucional != 'todos':
+            qs = qs.filter(eje_institucional__icontains=eje_institucional)
+        
+        # FILTRO 4: Próximas entregas (días hacia el futuro)
         days_threshold = self.request.query_params.get('days_threshold')
         if days_threshold and days_threshold != 'todos':
             try:
@@ -255,6 +348,81 @@ class ObraFilteredViewSet(viewsets.ReadOnlyModelViewSet):
                     puntuacion_final_ponderada__lt=max_score
                 )
         
+        # FILTRO 7: Viabilidad global (baja, media, alta)
+        viabilidad_filter = self.request.query_params.get('viabilidad')
+        if viabilidad_filter:
+            # Soporta múltiples valores separados por coma: "baja,media"
+            viabilidades = [v.strip() for v in viabilidad_filter.split(',')]
+            
+            # Implementación SQL eficiente usando CASE/WHEN
+            # Lógica: 1+ rojo = baja, 2+ amarillo = media, else alta
+            # (Q ya está importado al inicio del archivo)
+            
+            viabilidad_conditions = []
+            if 'baja' in viabilidades:
+                # 1 o más semáforos ROJOS
+                viabilidad_conditions.append(
+                    Q(viabilidad_tecnica_semaforo__iexact='rojo') |
+                    Q(viabilidad_presupuestal_semaforo__iexact='rojo') |
+                    Q(viabilidad_juridica_semaforo__iexact='rojo') |
+                    Q(viabilidad_temporal_semaforo__iexact='rojo') |
+                    Q(viabilidad_administrativa_semaforo__iexact='rojo')
+                )
+            
+            if 'media' in viabilidades:
+                # 2+ AMARILLOS y NO ROJOS
+                viabilidad_conditions.append(
+                    ~Q(viabilidad_tecnica_semaforo__iexact='rojo') &
+                    ~Q(viabilidad_presupuestal_semaforo__iexact='rojo') &
+                    ~Q(viabilidad_juridica_semaforo__iexact='rojo') &
+                    ~Q(viabilidad_temporal_semaforo__iexact='rojo') &
+                    ~Q(viabilidad_administrativa_semaforo__iexact='rojo') &
+                    (
+                        (Q(viabilidad_tecnica_semaforo__iexact='amarillo') & Q(viabilidad_presupuestal_semaforo__iexact='amarillo')) |
+                        (Q(viabilidad_tecnica_semaforo__iexact='amarillo') & Q(viabilidad_juridica_semaforo__iexact='amarillo')) |
+                        (Q(viabilidad_tecnica_semaforo__iexact='amarillo') & Q(viabilidad_temporal_semaforo__iexact='amarillo')) |
+                        (Q(viabilidad_tecnica_semaforo__iexact='amarillo') & Q(viabilidad_administrativa_semaforo__iexact='amarillo')) |
+                        (Q(viabilidad_presupuestal_semaforo__iexact='amarillo') & Q(viabilidad_juridica_semaforo__iexact='amarillo')) |
+                        (Q(viabilidad_presupuestal_semaforo__iexact='amarillo') & Q(viabilidad_temporal_semaforo__iexact='amarillo')) |
+                        (Q(viabilidad_presupuestal_semaforo__iexact='amarillo') & Q(viabilidad_administrativa_semaforo__iexact='amarillo')) |
+                        (Q(viabilidad_juridica_semaforo__iexact='amarillo') & Q(viabilidad_temporal_semaforo__iexact='amarillo')) |
+                        (Q(viabilidad_juridica_semaforo__iexact='amarillo') & Q(viabilidad_administrativa_semaforo__iexact='amarillo')) |
+                        (Q(viabilidad_temporal_semaforo__iexact='amarillo') & Q(viabilidad_administrativa_semaforo__iexact='amarillo'))
+                    )
+                )
+            
+            if 'alta' in viabilidades:
+                # Todos VERDES (no rojos ni suficientes amarillos)
+                viabilidad_conditions.append(
+                    ~Q(viabilidad_tecnica_semaforo__iexact='rojo') &
+                    ~Q(viabilidad_presupuestal_semaforo__iexact='rojo') &
+                    ~Q(viabilidad_juridica_semaforo__iexact='rojo') &
+                    ~Q(viabilidad_temporal_semaforo__iexact='rojo') &
+                    ~Q(viabilidad_administrativa_semaforo__iexact='rojo') &
+                    (
+                        # Menos de 2 amarillos
+                        ~(
+                            (Q(viabilidad_tecnica_semaforo__iexact='amarillo') & Q(viabilidad_presupuestal_semaforo__iexact='amarillo')) |
+                            (Q(viabilidad_tecnica_semaforo__iexact='amarillo') & Q(viabilidad_juridica_semaforo__iexact='amarillo')) |
+                            (Q(viabilidad_tecnica_semaforo__iexact='amarillo') & Q(viabilidad_temporal_semaforo__iexact='amarillo')) |
+                            (Q(viabilidad_tecnica_semaforo__iexact='amarillo') & Q(viabilidad_administrativa_semaforo__iexact='amarillo')) |
+                            (Q(viabilidad_presupuestal_semaforo__iexact='amarillo') & Q(viabilidad_juridica_semaforo__iexact='amarillo')) |
+                            (Q(viabilidad_presupuestal_semaforo__iexact='amarillo') & Q(viabilidad_temporal_semaforo__iexact='amarillo')) |
+                            (Q(viabilidad_presupuestal_semaforo__iexact='amarillo') & Q(viabilidad_administrativa_semaforo__iexact='amarillo')) |
+                            (Q(viabilidad_juridica_semaforo__iexact='amarillo') & Q(viabilidad_temporal_semaforo__iexact='amarillo')) |
+                            (Q(viabilidad_juridica_semaforo__iexact='amarillo') & Q(viabilidad_administrativa_semaforo__iexact='amarillo')) |
+                            (Q(viabilidad_temporal_semaforo__iexact='amarillo') & Q(viabilidad_administrativa_semaforo__iexact='amarillo'))
+                        )
+                    )
+                )
+            
+            if viabilidad_conditions:
+                # Combinar condiciones con OR
+                combined_q = viabilidad_conditions[0]
+                for condition in viabilidad_conditions[1:]:
+                    combined_q |= condition
+                qs = qs.filter(combined_q)
+        
         return qs
     
     def list(self, request, *args, **kwargs):
@@ -292,7 +460,7 @@ class ObraFilteredViewSet(viewsets.ReadOnlyModelViewSet):
     def _get_active_filters(self):
         """Helper para debugging: qué filtros están activos"""
         active = {}
-        for key in ['status', 'direccion', 'days_threshold', 'year', 'has_milestones', 'score_range']:
+        for key in ['status', 'direccion', 'eje_institucional', 'days_threshold', 'year', 'has_milestones', 'score_range', 'viabilidad']:
             value = self.request.query_params.get(key)
             if value and value != 'todos':
                 active[key] = value
@@ -383,46 +551,23 @@ class RecentActivityView(APIView):
         ).count()
         
         # Top 5 proyectos actualizados recientemente con estado calculado
+        from .utils import calcular_estatus_proyecto
+        
         latest_obras = Obra.objects.filter(
             ultima_actualizacion__isnull=False
         ).order_by('-ultima_actualizacion')[:5]
         
         latest_projects = []
         for obra in latest_obras:
-            avance_fisico = obra.avance_fisico_pct or 0
-            avance_financiero = obra.avance_financiero_pct or 0
-            riesgo_nivel = obra.riesgo_nivel or 3
-            
-            # Contar semáforos
-            semaforos = [
-                (obra.viabilidad_tecnica_semaforo or '').upper(),
-                (obra.viabilidad_presupuestal_semaforo or '').upper(),
-                (obra.viabilidad_juridica_semaforo or '').upper(),
-                (obra.viabilidad_temporal_semaforo or '').upper(),
-                (obra.viabilidad_administrativa_semaforo or '').upper(),
-            ]
-            reds = sum(1 for s in semaforos if s == 'ROJO')
-            yellows = sum(1 for s in semaforos if s == 'AMARILLO')
-            
-            # Calcular estado (misma lógica que mappers.ts)
-            if avance_fisico >= 99.9:
-                status = 'completado'
-            elif riesgo_nivel <= 2:
-                status = 'en_riesgo'
-            elif reds >= 1 or yellows >= 2:
-                status = 'en_riesgo'
-            elif avance_fisico > 0 or avance_financiero > 0:
-                status = 'en_ejecucion'
-            else:
-                status = 'planificado'
+            status = calcular_estatus_proyecto(obra)
             
             latest_projects.append({
                 'id': obra.id,
                 'programa': obra.programa,
                 'area_responsable': obra.area_responsable,
                 'ultima_actualizacion': obra.ultima_actualizacion.isoformat() if obra.ultima_actualizacion else None,
-                'avance_fisico_pct': avance_fisico,
-                'status': status,  # Estado calculado
+                'avance_fisico_pct': obra.avance_fisico_pct or 0,
+                'status': status,
             })
         
         # Proyectos completados recientemente (avance >= 95%)
@@ -508,44 +653,21 @@ class DynamicKPIsView(APIView):
         total_budget = float(presupuesto_agg['total'] or 0)
         total_executed = float(ejecutado_agg['ejecutado'] or 0)
         
-        # Proyectos por estado - CALCULADO con misma lógica que mappers.ts
+        # Proyectos por estado - Usando función centralizada
+        from .utils import calcular_estatus_proyecto
+        
         all_projects = Obra.objects.all()
         status_counts = {
             'planificado': 0,
             'en_ejecucion': 0,
             'en_riesgo': 0,
+            'retrasado': 0,
             'completado': 0
         }
         
         for obra in all_projects:
-            avance_fisico = obra.avance_fisico_pct or 0
-            avance_financiero = obra.avance_financiero_pct or 0
-            riesgo_nivel = obra.riesgo_nivel or 3
-            
-            # Contar semáforos rojos y amarillos
-            semaforos = [
-                (obra.viabilidad_tecnica_semaforo or '').upper(),
-                (obra.viabilidad_presupuestal_semaforo or '').upper(),
-                (obra.viabilidad_juridica_semaforo or '').upper(),
-                (obra.viabilidad_temporal_semaforo or '').upper(),
-                (obra.viabilidad_administrativa_semaforo or '').upper(),
-            ]
-            reds = sum(1 for s in semaforos if s == 'ROJO')
-            yellows = sum(1 for s in semaforos if s == 'AMARILLO')
-            
-            # Lógica jerárquica (misma que mappers.ts)
-            if avance_fisico >= 99.9:
-                status = 'completado'
-            elif riesgo_nivel <= 2:
-                status = 'en_riesgo'
-            elif reds >= 1 or yellows >= 2:
-                status = 'en_riesgo'
-            elif avance_fisico > 0 or avance_financiero > 0:
-                status = 'en_ejecucion'
-            else:
-                status = 'planificado'
-            
-            status_counts[status] += 1
+            status = calcular_estatus_proyecto(obra)
+            status_counts[status] = status_counts.get(status, 0) + 1
         
         by_status = [
             {'estatus_general': status, 'count': count}
@@ -592,46 +714,22 @@ class DynamicKPIsView(APIView):
                 'semaforos_raw': semaphores_raw
             })
         
-        # Calcular críticos con lógica robusta
+        # Calcular proyectos de atención prioritaria
+        # Criterio simplificado: Puntuación > 3 Y Viabilidad Baja o Media
+        from .utils import calcular_viabilidad_global
+        
         for obra in Obra.objects.all():
-            semaphores = [
-                (obra.viabilidad_tecnica_semaforo or '').upper(),
-                (obra.viabilidad_presupuestal_semaforo or '').upper(),
-                (obra.viabilidad_juridica_semaforo or '').upper(),
-                (obra.viabilidad_temporal_semaforo or '').upper(),
-                (obra.viabilidad_administrativa_semaforo or '').upper()
-            ]
-            reds = sum(1 for s in semaphores if s == 'ROJO')
-            yellows = sum(1 for s in semaphores if s == 'AMARILLO')
-            
             puntuacion = float(obra.puntuacion_final_ponderada or 0)
-            riesgo = obra.riesgo_nivel or 5
-            dependencias = obra.dependencias_nivel or 5
+            viabilidad = calcular_viabilidad_global(obra)
             
-            # Criterios para ser proyecto crítico (OR lógico):
+            # Criterio de atención prioritaria:
+            # Puntuación > 3 (Alta prioridad) Y viabilidad comprometida
             es_critico = False
             razon = []
             
-            # 1. Puntuación alta con problemas de viabilidad
-            if puntuacion >= 2.5 and (reds >= 1 or yellows >= 2):
+            if puntuacion > 3.0 and viabilidad in ['baja', 'media']:
                 es_critico = True
-                razon.append('Alta puntuación con problemas de viabilidad')
-            
-            # 2. Riesgo muy alto (escala inversa: 1-2 es muy alto riesgo)
-            if riesgo <= 2:
-                es_critico = True
-                razon.append(f'Riesgo muy alto (nivel {riesgo})')
-            
-            # 3. Muy dependiente (escala inversa: 1-2 es muy dependiente)
-            if dependencias <= 2:
-                es_critico = True
-                razon.append(f'Muy dependiente (nivel {dependencias})')
-            
-            # 4. Problemas graves de viabilidad (sin importar puntuación)
-            if reds >= 1 or yellows >= 2:
-                es_critico = True
-                if 'Alta puntuación con problemas de viabilidad' not in razon:
-                    razon.append(f'Problemas de viabilidad ({reds} rojos, {yellows} amarillos)')
+                razon.append(f'Puntuación alta ({puntuacion:.2f}) con viabilidad {viabilidad}')
             
             if es_critico:
                 critical_count += 1
@@ -639,16 +737,20 @@ class DynamicKPIsView(APIView):
                     'id': obra.id,
                     'nombre': obra.programa[:50] if obra.programa else '',
                     'puntuacion': puntuacion,
-                    'riesgo': riesgo,
-                    'dependencias': dependencias,
-                    'rojos': reds,
-                    'amarillos': yellows,
+                    'viabilidad': viabilidad,
                     'razon': ' | '.join(razon)
                 })
         
         return Response({
             'projects': {
                 'total': current_projects,
+                'active': active_projects,
+                'completed': status_counts.get('completado', 0)
+            },
+            'zones': {
+                'total': len(unique_zones),
+                'label': 'Alcaldías',
+                'list': sorted(list(unique_zones))
             },
             'budget': {
                 'total': total_budget,
@@ -656,19 +758,22 @@ class DynamicKPIsView(APIView):
                 'remaining': total_budget - total_executed,
                 'execution_rate': round((total_executed / total_budget * 100), 2) if total_budget > 0 else 0,
                 'formatted_total': f"${total_budget:,.0f}",
-                'formatted_executed': f"${total_executed:,.0f}",
-                'formatted_total_short': f"${total_budget/1_000_000:.1f}M" if total_budget >= 1_000_000 else f"${total_budget/1_000:.0f}K"
+                'formatted_executed': f"${total_executed:,.0f}"
             },
             'beneficiaries': {
                 'total': int(total_beneficiaries),
-                'formatted': f"{int(total_beneficiaries):,}",
-                'formatted_short': f"{int(total_beneficiaries)/1_000:.1f}K" if total_beneficiaries >= 1_000 else str(int(total_beneficiaries))
+                'formatted': f"{int(total_beneficiaries):,}"
             },
-            'critical_projects': {
+            'priority_attention': {
                 'count': critical_count,
-                'label': 'requieren revisión',
+                'label': 'requieren atención prioritaria',
                 '_debug': {
-                    'all_projects': all_projects_debug,
+                    'criteria': 'Puntuación > 3 Y Viabilidad Baja o Media',
+                    'viability_rules': {
+                        'baja': '1+ semáforo rojo',
+                        'media': '2+ semáforos amarillos',
+                        'alta': 'todos verdes/grises'
+                    },
                     'critical_projects': critical_debug
                 }
             },
@@ -687,61 +792,22 @@ class CriticalProjectsListView(APIView):
     
     GET /api/v2/dashboard/critical-projects/
     
-    Aplica la misma lógica multi-criterio de DashboardKPIView:
-    1. puntuacion >= 2.5 AND (1+ rojos OR 2+ amarillos)
-    2. riesgo_nivel <= 2 (escala inversa)
-    3. dependencias_nivel <= 2 (escala inversa)
-    4. 1+ rojos OR 2+ amarillos (cualquier problema)
+    Aplica lógica simplificada:
+    - Puntuación > 3 Y Viabilidad Baja o Media
     """
     
     def get(self, request):
+        from .utils import calcular_viabilidad_global
+        
         all_projects = Obra.objects.all()
         critical_projects_list = []
         
         for obra in all_projects:
-            avance_fisico = obra.avance_fisico_pct or 0
-            avance_financiero = obra.avance_financiero_pct or 0
-            puntuacion = obra.puntuacion_final_ponderada or 0
-            riesgo_nivel = obra.riesgo_nivel or 3
-            dependencias_nivel = obra.dependencias_nivel or 3
+            puntuacion = float(obra.puntuacion_final_ponderada or 0)
+            viabilidad = calcular_viabilidad_global(obra)
             
-            # Contar semáforos
-            semaforos = [
-                (obra.viabilidad_tecnica_semaforo or '').upper(),
-                (obra.viabilidad_presupuestal_semaforo or '').upper(),
-                (obra.viabilidad_juridica_semaforo or '').upper(),
-                (obra.viabilidad_temporal_semaforo or '').upper(),
-                (obra.viabilidad_administrativa_semaforo or '').upper(),
-            ]
-            reds = sum(1 for s in semaforos if s == 'ROJO')
-            yellows = sum(1 for s in semaforos if s == 'AMARILLO')
-            
-            # Evaluar si es crítico
-            es_critico = False
-            razones = []
-            
-            # Criterio 1: Alta puntuación con problemas
-            if puntuacion >= 2.5 and (reds >= 1 or yellows >= 2):
-                es_critico = True
-                razones.append(f"Alta puntuación ({puntuacion:.1f}) con problemas de viabilidad")
-            
-            # Criterio 2: Muy alto riesgo (escala inversa)
-            if riesgo_nivel <= 2:
-                es_critico = True
-                razones.append(f"Riesgo muy alto (nivel {riesgo_nivel})")
-            
-            # Criterio 3: Alta dependencia (escala inversa)
-            if dependencias_nivel <= 2:
-                es_critico = True
-                razones.append(f"Alta dependencia (nivel {dependencias_nivel})")
-            
-            # Criterio 4: Problemas de viabilidad sin importar puntuación
-            if reds >= 1 or yellows >= 2:
-                es_critico = True
-                if not any("problemas de viabilidad" in r for r in razones):
-                    razones.append(f"Problemas de viabilidad ({reds} rojos, {yellows} amarillos)")
-            
-            if es_critico:
+            # Criterio simplificado: Puntuación > 3 Y Viabilidad comprometida
+            if puntuacion > 3.0 and viabilidad in ['baja', 'media']:
                 critical_projects_list.append(obra)
         
         # Ordenar por puntuación descendente
@@ -763,70 +829,93 @@ class TerritoryAggregationsView(APIView):
     Agrupa proyectos por alcaldía/territorio con estadísticas.
     
     Sprint 3 - Calcula distribución territorial dinámica:
-    - Proyectos por alcaldía
-    - Presupuesto por alcaldía
+    - Proyectos por zona geográfica (Norte, Sur, Oriente, Poniente, Centro)
+    - Presupuesto prorrateado por zona
+    - Beneficiarios por zona
     - Avance promedio por territorio
     
     GET /api/v2/dashboard/territories/
     """
     
+    # Mapeo de alcaldías a zonas
+    ZONA_MAPPING = {
+        'Zona Norte': ['Gustavo A. Madero', 'Azcapotzalco'],
+        'Zona Sur': ['Tlalpan', 'Xochimilco', 'Milpa Alta'],
+        'Centro Histórico': ['Cuauhtémoc', 'Benito Juárez', 'Coyoacán'],
+        'Zona Oriente': ['Iztapalapa', 'Iztacalco', 'Venustiano Carranza', 'Tláhuac'],
+        'Zona Poniente': ['Miguel Hidalgo', 'Cuajimalpa de Morelos', 'Álvaro Obregón', 'La Magdalena Contreras']
+    }
+    
     def get(self, request):
-        # Obtener todas las obras con alcaldías
-        obras = Obra.objects.filter(
-            alcaldias__isnull=False
-        ).exclude(
-            alcaldias=''
-        ).values(
-            'alcaldias', 'ubicacion_especifica', 
-            'presupuesto_modificado', 'anteproyecto_total',
-            'avance_fisico_pct'
-        )
+        # Obtener todas las obras
+        obras = Obra.objects.all()
         
-        # Agrupar por alcaldía
-        territories = {}
+        # Inicializar estadísticas por zona
+        zone_stats = {
+            'Zona Norte': {'projects': 0, 'total_budget': 0, 'beneficiaries': 0, 'progress_list': []},
+            'Zona Sur': {'projects': 0, 'total_budget': 0, 'beneficiaries': 0, 'progress_list': []},
+            'Centro Histórico': {'projects': 0, 'total_budget': 0, 'beneficiaries': 0, 'progress_list': []},
+            'Zona Oriente': {'projects': 0, 'total_budget': 0, 'beneficiaries': 0, 'progress_list': []},
+            'Zona Poniente': {'projects': 0, 'total_budget': 0, 'beneficiaries': 0, 'progress_list': []}
+        }
         
         for obra in obras:
-            alcaldias_str = obra['alcaldias'] or 'Sin especificar'
+            alcaldias_str = (obra.alcaldias or '').lower().strip()
+            alcance = (obra.alcance_territorial or '').lower().strip()
+            presupuesto = obra.presupuesto_modificado if obra.presupuesto_modificado and obra.presupuesto_modificado > 0 else (obra.anteproyecto_total or 0)
+            beneficiarios = obra.beneficiarios_num or 0
+            avance = obra.avance_fisico_pct or 0
             
-            # Puede haber múltiples alcaldías separadas por comas
-            alcaldias_list = [a.strip() for a in str(alcaldias_str).split(',')]
+            # Determinar zonas afectadas usando alcance_territorial
+            zonas_afectadas = []
             
-            for alcaldia in alcaldias_list:
-                if not alcaldia:
-                    continue
-                
-                if alcaldia not in territories:
-                    territories[alcaldia] = {
-                        'name': alcaldia,
-                        'projects': 0,
-                        'total_budget': 0,
-                        'avg_progress': []
-                    }
-                
-                territories[alcaldia]['projects'] += 1
-                
-                # Presupuesto (usar modificado si > 0, sino anteproyecto)
-                presupuesto = obra['presupuesto_modificado'] if obra['presupuesto_modificado'] and obra['presupuesto_modificado'] > 0 else obra['anteproyecto_total']
-                territories[alcaldia]['total_budget'] += float(presupuesto or 0)
-                
-                territories[alcaldia]['avg_progress'].append(obra['avance_fisico_pct'] or 0)
+            # Caso 1: Toda la ciudad - búsqueda flexible
+            # Detecta: "toda la ciudad", "16 alcaldías", "todas", "completa", etc.
+            is_toda_ciudad = (
+                'toda' in alcance or 
+                'toda' in alcaldias_str or 
+                '16' in alcance or 
+                '16' in alcaldias_str or
+                'completa' in alcance or
+                'todas' in alcance or
+                'todas' in alcaldias_str
+            )
+            
+            if is_toda_ciudad:
+                zonas_afectadas = ['Zona Norte', 'Zona Sur', 'Centro Histórico', 'Zona Oriente', 'Zona Poniente']
+            # Caso 2: Múltiples alcaldías o una alcaldía - buscar en el texto
+            else:
+                # Buscar alcaldías en el texto
+                for zona, alcaldias in self.ZONA_MAPPING.items():
+                    for alcaldia in alcaldias:
+                        if alcaldia.lower() in alcaldias_str:
+                            if zona not in zonas_afectadas:
+                                zonas_afectadas.append(zona)
+            
+            # Si se encontraron zonas, distribuir (si no, el proyecto no se cuenta)
+            if zonas_afectadas:
+                # Prorratear entre zonas afectadas
+                factor = 1.0 / len(zonas_afectadas)
+                for zona in zonas_afectadas:
+                    zone_stats[zona]['projects'] += 1
+                    zone_stats[zona]['total_budget'] += float(presupuesto) * factor
+                    zone_stats[zona]['beneficiaries'] += beneficiarios * factor
+                    zone_stats[zona]['progress_list'].append(avance)
         
-        # Calcular promedios y formatear
+        # Formatear resultados
         result = []
-        for territory in territories.values():
-            progress_list = territory['avg_progress']
-            avg = sum(progress_list) / len(progress_list) if progress_list else 0
+        for zona_name, stats in zone_stats.items():
+            progress_list = stats['progress_list']
+            avg_progress = sum(progress_list) / len(progress_list) if progress_list else 0
             
             result.append({
-                'name': territory['name'],
-                'projects': territory['projects'],
-                'total_budget': territory['total_budget'],
-                'avg_progress': round(avg, 2),
-                'formatted_budget': f"${territory['total_budget']:,.2f}"
+                'name': zona_name,
+                'projects': stats['projects'],
+                'total_budget': round(stats['total_budget'], 2),
+                'beneficiaries': round(stats['beneficiaries']),
+                'avg_progress': round(avg_progress, 2),
+                'formatted_budget': f"${stats['total_budget']:,.0f}"
             })
-        
-        # Ordenar por número de proyectos (descendente)
-        result.sort(key=lambda x: x['projects'], reverse=True)
         
         return Response({
             'territories': result,
@@ -840,7 +929,7 @@ class RiskAnalysisView(APIView):
     Análisis de riesgos con clasificación de matriz y mitigaciones.
     
     Sprint 3 - Completa migración de RisksView:
-    - Proyectos en matriz de riesgos (score > 3 con semáforos amarillos/rojos)
+    - Proyectos en matriz de riesgos (score >= 3 con viabilidad baja o media)
     - Catálogo de riesgos identificados
     - Proyectos con acciones de mitigación
     - Categorías de riesgo con contadores
@@ -850,31 +939,26 @@ class RiskAnalysisView(APIView):
     
     def get(self, request):
         try:
-            # Helper para contar semáforos
-            def count_semaphores(obra):
-                semaphores = [
-                    obra.viabilidad_tecnica_semaforo,
-                    obra.viabilidad_presupuestal_semaforo,
-                    obra.viabilidad_juridica_semaforo
-                ]
-                red = sum(1 for s in semaphores if s == 'ROJO')
-                yellow = sum(1 for s in semaphores if s == 'AMARILLO')
-                return red, yellow
-            
             # 1. MATRIZ DE RIESGOS
-            # Filtrar proyectos con: (score > 3 Y 2+ amarillos) O (1+ rojo)
+            # Filtrar proyectos con: (viabilidad baja O media) Y (prioridad >= 3)
+            # Usa cálculos centralizados del backend (utils.py)
+            from .utils import calcular_viabilidad_global, obtener_etiqueta_prioridad
+            
             matrix_projects = []
             for obra in Obra.objects.all():
-                red, yellow = count_semaphores(obra)
                 score = float(obra.puntuacion_final_ponderada or 0)
+                viabilidad_global = calcular_viabilidad_global(obra)
+                prioridad_label = obtener_etiqueta_prioridad(score)
                 
-                if (score > 3 and yellow >= 2) or (red >= 1):
+                # Incluir si: (viabilidad baja O media) Y prioridad >= 3
+                if (viabilidad_global in ['baja', 'media']) and score >= 3.0:
                     matrix_projects.append({
                         'id': obra.id,
                         'nombre': obra.programa,
-                        'responsable': obra.area_responsable,
+                        'responsable': obra.responsable_operativo or obra.area_responsable,
                         'direccion': obra.area_responsable,
-                        'viabilidad': self._get_viabilidad_text(obra),
+                        'viabilidad': viabilidad_global,
+                        'prioridad_label': prioridad_label,
                         'score': score,
                         'semaphores': {
                             'tecnica': obra.viabilidad_tecnica_semaforo or 'VERDE',
@@ -883,6 +967,7 @@ class RiskAnalysisView(APIView):
                         },
                         'riesgos': self._parse_riesgos(obra.problemas_identificados),
                         'avance': float(obra.avance_fisico_pct or 0),
+                        'avance_financiero': float(obra.avance_financiero_pct or 0),
                         'presupuesto': float(obra.presupuesto_modificado if obra.presupuesto_modificado and obra.presupuesto_modificado > 0 else (obra.anteproyecto_total or 0))
                     })
             
@@ -974,7 +1059,15 @@ class RiskAnalysisView(APIView):
         if not riesgos_str:
             return []
         
-        # Separar por comas, guiones o saltos de línea
+        # Separar por múltiples delimitadores: comas, punto y coma, saltos de línea, pipes
         import re
-        riesgos = re.split(r'[,\n;-]+', str(riesgos_str))
-        return [r.strip() for r in riesgos if r.strip()]
+        riesgos = re.split(r'[,;\n\r|]+', str(riesgos_str))
+        # Limpiar espacios, eliminar guiones iniciales y filtrar vacíos
+        riesgos_limpios = []
+        for r in riesgos:
+            r = r.strip()
+            # Eliminar guiones y numeración al inicio (-, •, -, 1., etc.)
+            r = re.sub(r'^[-•\-\d\.\)\s]+', '', r).strip()
+            if r and len(r) > 3:  # Ignorar riesgos muy cortos (probablemente basura)
+                riesgos_limpios.append(r)
+        return riesgos_limpios[:10]  # Limitar a 10 riesgos máximo

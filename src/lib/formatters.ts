@@ -3,11 +3,226 @@
  * IMPORTANTE: Todos los valores del backend vienen en pesos, no en millones
  */
 
+import { ZONA_MAPPING } from './zones';
+
 interface CurrencyFormatOptions {
 	value: number;
 	locale?: string;
 	currency?: string;
 }
+
+/**
+ * Normaliza el nombre de una alcaldía para comparación
+ * Remueve acentos, puntos, artículos, etc.
+ */
+const normalizeAlcaldiaName = (name: string): string => {
+	return name
+		.toLowerCase()
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "") // Remover acentos
+		.replace(/\./g, '') // Remover puntos (G.A. Madero -> GA Madero)
+		.replace(/^(la|el|los|las)\s+/i, '') // Remover artículos iniciales
+		.replace(/\s+de\s+/g, ' ') // Simplificar "de" (Cuajimalpa de Morelos -> Cuajimalpa Morelos)
+		.replace(/[^\w\s]/g, '') // Remover puntuación
+		.replace(/\s+/g, ' ') // Normalizar espacios
+		.trim();
+};
+
+/**
+ * Crea variaciones de búsqueda para una alcaldía
+ * Ejemplo: "Gustavo A. Madero" -> ["gustavo a madero", "gustavo madero", "ga madero"]
+ */
+const generateAlcaldiaVariants = (name: string): string[] => {
+	const variants: string[] = [];
+	const normalized = normalizeAlcaldiaName(name);
+	
+	// Variante principal normalizada
+	variants.push(normalized);
+	
+	// Sin artículos (La Magdalena Contreras -> Magdalena Contreras)
+	const withoutArticle = name.replace(/^(la|el|los|las)\s+/i, '');
+	if (withoutArticle !== name) {
+		variants.push(normalizeAlcaldiaName(withoutArticle));
+	}
+	
+	// Sin "de" intermedios (Cuajimalpa de Morelos -> Cuajimalpa Morelos)
+	const withoutDe = name.replace(/\s+de\s+/gi, ' ');
+	if (withoutDe !== name) {
+		variants.push(normalizeAlcaldiaName(withoutDe));
+	}
+	
+	// Sin puntos en iniciales (G.A. Madero -> GA Madero)
+	const withoutDots = name.replace(/\./g, '');
+	if (withoutDots !== name) {
+		variants.push(normalizeAlcaldiaName(withoutDots));
+	}
+	
+	// Abreviaciones de iniciales (Gustavo A Madero -> GA Madero)
+	const words = normalized.split(' ');
+	if (words.length > 2) {
+		// Primera palabra + iniciales del resto
+		const abbreviated = words[0] + ' ' + words.slice(1).map(w => w[0]).join('');
+		variants.push(abbreviated);
+	}
+	
+	return [...new Set(variants)]; // Eliminar duplicados
+};
+
+/**
+ * Lista completa de las 16 alcaldías de la CDMX normalizadas
+ */
+const ALL_ALCALDIAS = Object.values(ZONA_MAPPING).flat();
+
+/**
+ * Identifica a qué zona pertenece una alcaldía
+ */
+const getZoneForAlcaldia = (alcaldia: string): string | null => {
+	const inputVariants = generateAlcaldiaVariants(alcaldia);
+	
+	for (const [zone, alcaldias] of Object.entries(ZONA_MAPPING)) {
+		for (const knownAlcaldia of alcaldias) {
+			const knownVariants = generateAlcaldiaVariants(knownAlcaldia);
+			
+			// Verificar si alguna variante del input coincide con alguna variante conocida
+			for (const inputVar of inputVariants) {
+				for (const knownVar of knownVariants) {
+					if (inputVar === knownVar || inputVar.includes(knownVar) || knownVar.includes(inputVar)) {
+						return zone;
+					}
+				}
+			}
+		}
+	}
+	return null;
+};
+
+/**
+ * Agrupa alcaldías por zona geográfica
+ */
+const groupAlcaldiasByZone = (alcaldias: string[]): Record<string, string[]> => {
+	const grouped: Record<string, string[]> = {};
+	
+	alcaldias.forEach(alcaldia => {
+		const zone = getZoneForAlcaldia(alcaldia);
+		if (zone) {
+			if (!grouped[zone]) {
+				grouped[zone] = [];
+			}
+			grouped[zone].push(alcaldia);
+		} else {
+			// Alcaldías no reconocidas van a "Otras"
+			if (!grouped['Otras']) {
+				grouped['Otras'] = [];
+			}
+			grouped['Otras'].push(alcaldia);
+		}
+	});
+	
+	return grouped;
+};
+
+/**
+ * Analiza la cobertura territorial de un proyecto
+ * @param alcaldias - String con las alcaldías (puede contener comas, pipes, etc.)
+ * @returns Objeto con información de cobertura territorial
+ */
+export const analyzeTerritorialCoverage = (alcaldias?: string | null) => {
+	if (!alcaldias || alcaldias.trim() === '') {
+		return {
+			type: 'unknown' as const,
+			count: 0,
+			list: [],
+			grouped: {},
+			display: 'Sin especificar',
+			icon: '📍'
+		};
+	}
+
+	// Detectar primero si menciona toda la ciudad
+	const normalizedInput = normalizeAlcaldiaName(alcaldias);
+	const hasAllKeyword = /todas|16|completa|toda la ciudad/i.test(alcaldias);
+	
+	if (hasAllKeyword) {
+		const grouped = groupAlcaldiasByZone(ALL_ALCALDIAS);
+		return {
+			type: 'all' as const,
+			count: 16,
+			list: ALL_ALCALDIAS,
+			grouped,
+			display: 'Toda la Ciudad de México (16 alcaldías)',
+			icon: '🏙️'
+		};
+	}
+
+	// ESTRATEGIA MEJORADA: Buscar alcaldías conocidas en el texto
+	// Esto maneja correctamente "Magdalena Contreras", "Benito Juárez", etc.
+	const foundAlcaldias: Set<string> = new Set();
+	
+	// Normalizar el texto de entrada una sola vez
+	const textNormalized = normalizeAlcaldiaName(alcaldias);
+	
+	// Buscar cada alcaldía conocida y sus variantes en el texto
+	ALL_ALCALDIAS.forEach(alcaldia => {
+		const variants = generateAlcaldiaVariants(alcaldia);
+		
+		// Si alguna variante aparece en el texto, agregar la alcaldía oficial
+		for (const variant of variants) {
+			if (textNormalized.includes(variant)) {
+				foundAlcaldias.add(alcaldia);
+				break; // Ya encontramos esta alcaldía, pasar a la siguiente
+			}
+		}
+	});
+
+	// Si encontramos alcaldías conocidas, usar esas
+	let alcaldiasList: string[] = [];
+	
+	if (foundAlcaldias.size > 0) {
+		alcaldiasList = Array.from(foundAlcaldias);
+	} else {
+		// Fallback: dividir por separadores comunes
+		const separators = /[,;|\n]/;
+		alcaldiasList = alcaldias
+			.split(separators)
+			.map(a => a.trim())
+			.filter(Boolean);
+	}
+
+	const count = alcaldiasList.length;
+	const grouped = groupAlcaldiasByZone(alcaldiasList);
+
+	// Una sola alcaldía
+	if (count === 1) {
+		const zone = getZoneForAlcaldia(alcaldiasList[0]);
+		return {
+			type: 'single' as const,
+			count: 1,
+			list: alcaldiasList,
+			grouped,
+			zone: zone || undefined,
+			display: alcaldiasList[0],
+			icon: '📍'
+		};
+	}
+
+	// Múltiples alcaldías
+	const zones = Object.keys(grouped).filter(z => z !== 'Otras');
+	const displayZones = zones.length > 1 
+		? `${count} alcaldías (${zones.length} zonas)` 
+		: zones.length === 1
+			? `${count} alcaldías - ${zones[0]}`
+			: `${count} alcaldías`;
+
+	return {
+		type: 'multiple' as const,
+		count,
+		list: alcaldiasList,
+		grouped,
+		zones,
+		display: displayZones,
+		icon: '📍'
+	};
+};
 
 /**
  * Valida y sanitiza valores numéricos

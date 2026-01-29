@@ -1,6 +1,12 @@
 from django.core.management.base import BaseCommand
 from poa.models import Obra
-from poa.utils import clean_money, clean_percentage, interpretar_escala_flexible, clean_beneficiarios_advanced
+from poa.utils import (
+	clean_money, 
+	clean_percentage, 
+	interpretar_escala_flexible, 
+	clean_beneficiarios_advanced,
+	calcular_puntuacion_ponderada
+)
 import pandas as pd
 import os
 from datetime import datetime, timedelta
@@ -148,6 +154,21 @@ class Command(BaseCommand):
 
 		for _, row in df.iterrows():
 			try:
+				# Priorización (interpretamos escalas flexiblemente)
+				alineacion = interpretar_escala_flexible(row[21])
+				impacto = interpretar_escala_flexible(row[22])
+				urgencia = interpretar_escala_flexible(row[23])
+				viabilidad = interpretar_escala_flexible(row[24])
+				recursos = interpretar_escala_flexible(row[25])
+				riesgo = interpretar_escala_flexible(row[26])
+				dependencias = interpretar_escala_flexible(row[27])
+				
+				# Calcular puntuación ponderada automáticamente
+				# (ignoramos el valor del Excel en columna 28 si existe)
+				puntuacion = calcular_puntuacion_ponderada(
+					alineacion, impacto, urgencia, viabilidad, recursos, riesgo, dependencias
+				)
+				
 				obra = Obra(
 					# Identificación
 					id_excel=row[0],
@@ -155,17 +176,17 @@ class Command(BaseCommand):
 					area_responsable=safe_str(row[2]),
 					eje_institucional=safe_str(row[3]),
 					
-					# Presupuesto
+					# Presupuesto (VALORES EN MDP - Millones De Pesos)
 					tipo_recurso=safe_str(row[4]),
 					concentrado_programas=safe_str(row[5]),
 					capitulo_gasto=safe_str(row[6]),
-					presupuesto_modificado=clean_money(row[7]),
-					anteproyecto_total=clean_money(row[8]),
-					meta_2025=clean_money(row[9]),
-					meta_2026=clean_money(row[10]),
+					presupuesto_modificado=clean_money(row[7], es_mdp=True),  # En MDP
+					anteproyecto_total=clean_money(row[8], es_mdp=True),      # En MDP
+					meta_2025=clean_money(row[9], es_mdp=False),              # Cantidad de metas (no dinero)
+					meta_2026=clean_money(row[10], es_mdp=False),             # Cantidad de metas (no dinero)
 					unidad_medida=safe_str(row[11]),
-					costo_unitario=clean_money(row[12]),
-					proyecto_presupuesto=clean_money(row[13]),
+					costo_unitario=clean_money(row[12], es_mdp=False),        # Costo unitario (no MDP)
+					proyecto_presupuesto=clean_money(row[13], es_mdp=False),  # Verificar si este debe ser MDP
 					multianualidad=safe_str(row[14]),
 
 					# Categorización
@@ -176,15 +197,15 @@ class Command(BaseCommand):
 					complejidad_tecnica=interpretar_escala_flexible(row[19]),
 					impacto_social_desc=safe_str(row[20]),
 
-					# Priorización
-					alineacion_estrategica=interpretar_escala_flexible(row[21]),
-					impacto_social_nivel=interpretar_escala_flexible(row[22]),
-					urgencia=interpretar_escala_flexible(row[23]),
-					viabilidad_ejecucion=interpretar_escala_flexible(row[24]),
-					recursos_disponibles=interpretar_escala_flexible(row[25]),
-					riesgo_nivel=interpretar_escala_flexible(row[26]),
-					dependencias_nivel=interpretar_escala_flexible(row[27]),
-					puntuacion_final_ponderada=clean_money(row[28]),
+					# Priorización (usando valores ya interpretados)
+					alineacion_estrategica=alineacion,
+					impacto_social_nivel=impacto,
+					urgencia=urgencia,
+					viabilidad_ejecucion=viabilidad,
+					recursos_disponibles=recursos,
+					riesgo_nivel=riesgo,
+					dependencias_nivel=dependencias,
+					puntuacion_final_ponderada=puntuacion,  # Calculado automáticamente
 
 					# Semáforos
 					viabilidad_tecnica_semaforo=safe_str(row[29]),

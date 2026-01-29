@@ -155,11 +155,27 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Roboto', sans-serif; /* Usamos Roboto aquí */
+    /* Mejoras para dispositivos móviles y touch */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    overscroll-behavior: contain;
   }
 
   /* TÍTULOS (h1, h2, h3...) */
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Cabin', sans-serif; /* Usamos Cabin para que destaquen */
+  }
+  
+  /* Scroll suave en toda la aplicación */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Optimización de scroll en contenedores */
+  * {
+    -webkit-overflow-scrolling: touch;
   }
 }
 

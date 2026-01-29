@@ -13,10 +13,12 @@ import type { Project, APIProject } from '@/types';
 export interface ProjectFilters {
   status?: string;
   direccion?: string;
+  eje_institucional?: string;
   days_threshold?: number | string;
   year?: number;
   has_milestones?: boolean; // 
   score_range?: 'critica' | 'muy_alta' | 'alta' | 'media' | 'baja';
+  viabilidad?: string; // Soporta múltiples: "baja,media" o "alta"
   search?: string;
   ordering?: string;
   page?: number;

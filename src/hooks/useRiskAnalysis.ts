@@ -14,10 +14,12 @@ interface MatrixProject {
   responsable: string;
   direccion: string;
   viabilidad: 'baja' | 'media' | 'alta';
+  prioridad_label: 'critica' | 'muy_alta' | 'alta' | 'media' | 'baja';
   score: number;
   semaphores: Semaphores;
   riesgos: string[];
   avance: number;
+  avance_financiero: number;
   presupuesto: number;
 }
 
@@ -59,7 +61,7 @@ interface RiskAnalysisData {
  * Hook para obtener análisis completo de riesgos del dashboard.
  * 
  * Sprint 3 - Migración completa de RisksView:
- * - Matriz de riesgos (proyectos con score > 3 y semáforos rojos/amarillos)
+ * - Matriz de riesgos (proyectos con score >= 3 y viabilidad baja o media)
  * - Catálogo de riesgos identificados
  * - Proyectos con acciones de mitigación
  * - Categorías de riesgo con contadores

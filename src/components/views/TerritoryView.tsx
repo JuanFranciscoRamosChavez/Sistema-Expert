@@ -16,9 +16,10 @@ import { ZONE_COLORS } from '@/lib/zones';
 import { APP_COLORS } from '@/lib/theme';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { H1, H3, P, Subtitle, Small } from '@/components/ui/typography';
+import { filterProjectsByZone } from '@/lib/territoryCalculations';
 
 /**
- * TerritoryView - Sprint 3 migrado a backend
+ * TerritoryView - Sprint 3 usando backend
  * Usa useTerritories para agregaciones territoriales serverside
  */
 export function TerritoryView() {
@@ -26,7 +27,7 @@ export function TerritoryView() {
 	const { data: territoriesData, isLoading: loadingTerritories, error: territoriesError } = useTerritories();
 	
 	// Mantener useDashboardData solo para filtrar proyectos individuales al hacer click en zona
-	const { projects, loading: loadingProjects } = useDashboardData();
+	const { projects, kpiData, loading: loadingProjects } = useDashboardData();
 	
 	const loading = loadingTerritories || loadingProjects;
 	const error = territoriesError ? 'Error al cargar datos territoriales' : null;
@@ -41,10 +42,9 @@ export function TerritoryView() {
 		const stats: Record<string, any> = {};
 		territoriesData.territories.forEach(territory => {
 			stats[territory.name] = {
-				projects: territory.projects,
+				count: territory.projects,
 				budget: territory.total_budget,
-				beneficiaries: 0, // El backend no calcula beneficiarios aún
-				count: territory.projects
+				beneficiaries: territory.beneficiaries || 0
 			};
 		});
 		return stats;
@@ -53,12 +53,7 @@ export function TerritoryView() {
 	// Filtrar proyectos por zona seleccionada
 	const filteredProjects = useMemo(() => {
 		if (!selectedZone) return [];
-		return projects.filter(p => {
-			const zona = p.zona?.toLowerCase() || '';
-			const alcaldias = p.alcaldias?.toLowerCase() || '';
-			const zonaNormalizada = selectedZone.toLowerCase();
-			return zona.includes(zonaNormalizada) || alcaldias.includes(zonaNormalizada);
-		});
+		return filterProjectsByZone(projects, selectedZone);
 	}, [projects, selectedZone]);
 
 	const handleZoneClick = (zoneName: string) => {
@@ -69,41 +64,31 @@ export function TerritoryView() {
 	// Preparar datos para gráficas
 	const pieData = useMemo(() => {
 		return Object.entries(zoneStats)
-			.filter(([zone, stats]) => stats.projects > 0 && zone !== 'Sin Asignar')
-			.map(([zone, stats]) => ({
-				name: zone,
-				value: stats.projects,
-				color: ZONE_COLORS[zone] || '#gray'
+			.map(([name, data]) => ({
+				name,
+				value: data.budget
 			}));
 	}, [zoneStats]);
 
 	const barData = useMemo(() => {
 		return Object.entries(zoneStats)
-			.filter(([zone]) => zone !== 'Sin Asignar')
-			.map(([zone, stats]) => ({
-				name: zone,
-				Proyectos: stats.projects,
-				Presupuesto: stats.budget / 1_000_000,
-				Beneficiarios: stats.beneficiaries
+			.map(([name, data]) => ({
+				name,
+				proyectos: data.count,
+				beneficiarios: data.beneficiaries
 			}));
 	}, [zoneStats]);
 
 	// Calcular totales
 	const presupuestoZonasCalculado = Object.values(zoneStats)
 		.reduce((sum: number, z: any) => sum + (z.budget || 0), 0);
-	const proyectosTotalesReales = Object.values(zoneStats)
-		.reduce((sum: number, z: any) => sum + (z.projects || 0), 0);
-	const asignacionesZonales = Object.keys(zoneStats).length;
+	const proyectosTotalesReales = projects.length;
+	const asignacionesZonales = Object.values(zoneStats)
+		.reduce((sum: number, z: any) => sum + (z.count || 0), 0);
 	const beneficiariosTotales = Object.values(zoneStats)
 		.reduce((sum: number, z: any) => sum + (z.beneficiaries || 0), 0);
 	
-	const presupuestoTotalReal = presupuestoZonasCalculado;
-	const sinAsignarStats = zoneStats['Sin Asignar'] || { budget: 0, projects: 0 };
-	const hayAnomaliasSinAsignar = sinAsignarStats.projects > 0;
-	const porcentajeSinAsignar = presupuestoTotalReal > 0 
-		? (sinAsignarStats.budget / presupuestoTotalReal) * 100 
-		: 0;
-	const sinAsignarBudget = sinAsignarStats.budget;
+	const presupuestoTotalReal = kpiData?.budget?.total || presupuestoZonasCalculado;
 
 	// --- Estados de Carga y Error ---
 	if (loading) {
@@ -146,21 +131,7 @@ export function TerritoryView() {
 							</span>
 						</Small>
 					</div>
-
-					{/* Alerta de Anomalías */}
-					{hayAnomaliasSinAsignar && (
-						<div className="mt-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-800 rounded-lg">
-							<Small className="text-amber-800 dark:text-amber-300 flex items-start gap-2">
-								<AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-								<span>
-									<strong>Atención:</strong> Hay {zoneStats['Sin Asignar'].count} proyecto(s) sin alcaldías asignadas 
-									que representan {formatBudgetValue({ value: sinAsignarBudget })} ({porcentajeSinAsignar.toFixed(1)}% del total). 
-									Verifica que todos los proyectos tengan el campo "Alcaldías" correctamente completado.
-								</span>
-							</Small>
-					</div>
-				)}
-			</div>
+				</div>
 
 			{/* Panel de Estadísticas Totales */}
 			<div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 p-2 sm:p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-lg">
@@ -206,9 +177,7 @@ export function TerritoryView() {
 
 			{/* Tarjetas de Resumen por Zona */}
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
-				{Object.entries(zoneStats)
-					.filter(([name]) => name !== 'Sin Asignar' || zoneStats['Sin Asignar'].count > 0)
-					.map(([zoneName, data], index) => {
+				{Object.entries(zoneStats).map(([zoneName, data], index) => {
 						const color = ZONE_COLORS[zoneName] || 'hsl(var(--muted))';
 						
 						return (
@@ -489,7 +458,7 @@ export function TerritoryView() {
 				<CardContent className="p-4 sm:p-6">
 					<div className="space-y-3">
 						{Object.entries(zoneStats)
-							.filter(([name]) => name !== 'Sin Asignar') // Excluir "Sin Asignar" de este análisis
+
 							.sort((a, b) => b[1].budget - a[1].budget) // Ordenar por presupuesto descendente
 							.map(([zoneName, data], index) => {
 								const color = ZONE_COLORS[zoneName] || 'hsl(var(--muted))';
@@ -552,22 +521,10 @@ export function TerritoryView() {
 							})
 						}
 					</div>
+		</CardContent>
+	</Card>
 
-					{/* Indicador de "Sin Asignar" si existe */}
-					{zoneStats['Sin Asignar']?.count > 0 && (
-						<div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-							<Small className="text-amber-800 dark:text-amber-300 flex items-center gap-2">
-								<AlertCircle className="h-4 w-4 flex-shrink-0" />
-								<span>
-									<strong>Nota:</strong> {zoneStats['Sin Asignar'].count} proyecto(s) sin zona asignada con presupuesto de {formatBudgetValue({ value: zoneStats['Sin Asignar'].budget })} no se incluyen en este análisis.
-								</span>
-							</Small>
-						</div>
-					)}
-				</CardContent>
-			</Card>
 
-			{/* Modal con Proyectos de la Zona */}
 			<Dialog open={isMapDialogOpen} onOpenChange={setIsMapDialogOpen}>
 				<DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
 					<DialogHeader>
@@ -596,3 +553,4 @@ export function TerritoryView() {
 		</div>
 	);
 }
+

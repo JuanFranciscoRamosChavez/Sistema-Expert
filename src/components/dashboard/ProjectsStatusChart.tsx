@@ -41,24 +41,25 @@ export function ProjectsStatusChart() {
   const totalProjects = kpis.projects.total || 0;
 
   return (
-    <div className="bg-card rounded-xl border border-border shadow-sm flex flex-col h-full min-h-[350px]">
-      <div className="p-6 border-b border-border">
+    <div className="bg-card rounded-xl border border-border shadow-sm flex flex-col h-full min-h-[300px]">
+      <div className="p-3 sm:p-4 lg:p-6 border-b border-border">
         <H3>Estado de Proyectos</H3>
-        <Subtitle>Distribución actual del portafolio</Subtitle>
+        <Subtitle className="hidden sm:block">Distribución actual del portafolio</Subtitle>
       </div>
 
-      <div className="flex-1 relative p-4">
+      <div className="flex-1 relative p-2 sm:p-4">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={chartData}
               cx="50%"
               cy="50%"
-              innerRadius={60}
-              outerRadius={80}
+              innerRadius={50}
+              outerRadius={70}
               paddingAngle={2}
               dataKey="value"
               stroke="none"
+              className="focus:outline-none"
             >
               {chartData.map((entry, index) => (
                 <Cell 
@@ -78,18 +79,19 @@ export function ProjectsStatusChart() {
               verticalAlign="bottom" 
               height={36} 
               iconType="circle"
-              iconSize={8}
-              wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
+              iconSize={6}
+              wrapperStyle={{ fontSize: '10px', paddingTop: '8px' }}
+              className="text-xs"
             />
           </PieChart>
         </ResponsiveContainer>
         
         {/* KPI Central (Donut Hole) */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] text-center pointer-events-none">
-          <span className="text-3xl font-bold text-foreground block">
+          <span className="text-2xl sm:text-3xl font-bold text-foreground block">
             {totalProjects}
           </span>
-          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
+          <span className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
             Total
           </span>
         </div>

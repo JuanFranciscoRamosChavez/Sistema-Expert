@@ -43,10 +43,11 @@ export function mapApiToUiProject(api: APIProject): Project {
     direccion: api.area_responsable || 'General',
     area_responsable: api.area_responsable,
     responsable: api.responsable_operativo || 'No asignado',
+    eje_institucional: api.eje_institucional,
     presupuesto: api.presupuesto_final || 0,
     ejecutado: api.monto_ejecutado || 0,
     beneficiarios: api.beneficiarios_num || 0,
-    riesgo: api.riesgo_nivel ?? 1, // Valor por defecto visual
+    riesgo: Number(api.riesgo_nivel) || 1,
     duracion_meses: api.duracion_meses,
     alcanceTerritorial: api.alcance_territorial,
     observaciones: api.observaciones,
@@ -84,6 +85,7 @@ export function mapApiToUiProject(api: APIProject): Project {
     
     avance: api.avance_fisico_pct || 0,
     avance_fisico_pct: api.avance_fisico_pct || 0,
+    avance_financiero_pct: api.avance_financiero_pct || 0,
     
     // --- OTROS ---
     ubicacion: ubicacionCompleta || 'No especificada',

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Obra
+from .utils import calcular_puntuacion_ponderada, obtener_etiqueta_prioridad
 
 class ObraSerializer(serializers.ModelSerializer):
     # --- CAMPOS CALCULADOS (Nuevos) ---
@@ -32,67 +33,39 @@ class ObraSerializer(serializers.ModelSerializer):
     # --- LÓGICA DE NEGOCIO ---
 
     def get_puntuacion_final_ponderada(self, obj):
-        """Promedio ponderado de las puntuaciones."""
-        criterios = [
-            obj.alineacion_estrategica,
-            obj.impacto_social_nivel,
-            obj.urgencia,
-            obj.viabilidad_ejecucion,
-            obj.recursos_disponibles,
-            obj.riesgo_nivel,
-            obj.dependencias_nivel
-        ]
-        # Filtramos None para evitar errores, asumimos 1 si falta dato
-        validos = [c if c is not None else 1 for c in criterios]
-        return round(sum(validos) / 7, 2)
+        """
+        Calcula la puntuación ponderada usando la función centralizada.
+        Promedio de los 7 criterios de priorización.
+        """
+        return calcular_puntuacion_ponderada(
+            obj.alineacion_estrategica or 1,
+            obj.impacto_social_nivel or 1,
+            obj.urgencia or 1,
+            obj.viabilidad_ejecucion or 1,
+            obj.recursos_disponibles or 1,
+            obj.riesgo_nivel or 1,
+            obj.dependencias_nivel or 1
+        )
 
     def get_prioridad_label(self, obj):
-        """Determina etiqueta basada en la puntuación"""
+        """Determina etiqueta basada en la puntuación usando función centralizada"""
         score = self.get_puntuacion_final_ponderada(obj)
-        if score >= 4.5: return 'critica'
-        if score >= 3.5: return 'muy_alta'
-        if score >= 2.5: return 'alta'
-        if score >= 1.5: return 'media'
-        return 'baja'
+        return obtener_etiqueta_prioridad(score)
 
     def get_viabilidad_global(self, obj):
-        """Calcula viabilidad contando semáforos rojos y amarillos"""
-        sem_list = [
-            obj.viabilidad_tecnica_semaforo,
-            obj.viabilidad_presupuestal_semaforo,
-            obj.viabilidad_juridica_semaforo,
-            obj.viabilidad_temporal_semaforo,
-            obj.viabilidad_administrativa_semaforo
-        ]
-        # Normalizar a mayúsculas y contar
-        sem_list = [s.upper() if s else 'GRIS' for s in sem_list]
-        rojos = sem_list.count('ROJO')
-        amarillos = sem_list.count('AMARILLO')
-
-        if rojos >= 1: return 'baja'
-        if amarillos >= 2: return 'media'
-        return 'alta'
+        """
+        Calcula viabilidad usando función centralizada de utils.
+        Mantiene consistencia en toda la aplicación.
+        """
+        from .utils import calcular_viabilidad_global
+        return calcular_viabilidad_global(obj)
 
     def get_estatus_general(self, obj):
         """
-        Calcula el estado real del proyecto.
+        Calcula el estado real del proyecto usando función centralizada.
         """
-        avance = obj.avance_fisico_pct or 0
-        riesgo = obj.riesgo_nivel or 0
-        
-        # 1. Completado
-        if avance >= 99.9:
-            return 'completado'
-            
-        # 2. En Riesgo
-        if riesgo >= 4 or self.get_semaforo(obj) == 'ROJO':
-            return 'en_riesgo'
-            
-        # 3. En Ejecución
-        if avance > 0 or (obj.avance_financiero_pct or 0) > 0:
-            return 'en_ejecucion'
-            
-        return 'planificado'
+        from .utils import calcular_estatus_proyecto
+        return calcular_estatus_proyecto(obj)
 
     # --- HELPERS ---
 

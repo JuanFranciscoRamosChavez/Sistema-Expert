@@ -6,6 +6,7 @@ interface TerritoryData {
   name: string;
   projects: number;
   total_budget: number;
+  beneficiaries: number;
   avg_progress: number;
   formatted_budget: string;
 }

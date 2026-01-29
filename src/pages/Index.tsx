@@ -16,29 +16,6 @@ const Index = () => {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const renderView = () => {
-    switch (currentView) {
-      case 'dashboard':
-        return <DashboardView />;
-      case 'projects':
-        return <ProjectsView />;
-      case 'risks':
-        return <RisksView />;
-       case 'territory':
-         return <TerritoryView />;
-       case 'timeline':
-         return <TimelineView />;
-      // case 'transparency':
-      //   return <TransparencyView />;
-      // case 'reports':
-      //   return <ReportsView />;
-      // case 'settings':
-      //   return <SettingsView />;
-      default:
-        return <DashboardView />;
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background flex">
       <Sidebar 
@@ -52,7 +29,22 @@ const Index = () => {
         <Header onMenuClick={() => setSidebarOpen(true)} />
         
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-          {renderView()}
+          {/* Mantener todos los componentes montados pero ocultos para preservar estado */}
+          <div style={{ display: currentView === 'dashboard' ? 'block' : 'none' }}>
+            <DashboardView />
+          </div>
+          <div style={{ display: currentView === 'projects' ? 'block' : 'none' }}>
+            <ProjectsView />
+          </div>
+          <div style={{ display: currentView === 'risks' ? 'block' : 'none' }}>
+            <RisksView />
+          </div>
+          <div style={{ display: currentView === 'territory' ? 'block' : 'none' }}>
+            <TerritoryView />
+          </div>
+          <div style={{ display: currentView === 'timeline' ? 'block' : 'none' }}>
+            <TimelineView />
+          </div>
         </main>
       </div>
     </div>
