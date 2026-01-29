@@ -53,6 +53,7 @@ export function mapApiToUiProject(api: APIProject): Project {
     observaciones: api.observaciones,
     problema_resuelve: api.problema_resuelve,
     alcaldias: api.alcaldias,
+    multianualidad: api.multianualidad,
     accionesCorrectivas: api.acciones_correctivas,
     hitos_comunicacionales: api.hitos_comunicacionales,
     objetivo: api.problema_resuelve || api.solucion_ofrece,

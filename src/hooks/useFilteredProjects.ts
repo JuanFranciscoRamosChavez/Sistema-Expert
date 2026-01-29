@@ -19,6 +19,8 @@ export interface ProjectFilters {
   has_milestones?: boolean; // 
   score_range?: 'critica' | 'muy_alta' | 'alta' | 'media' | 'baja';
   viabilidad?: string; // Soporta múltiples: "baja,media" o "alta"
+  is_overdue?: boolean; // Proyectos atrasados
+  multianualidad?: 'si' | 'no' | 'todos'; // Filtro de multianualidad
   search?: string;
   ordering?: string;
   page?: number;

@@ -45,6 +45,9 @@ const Index = () => {
           <div style={{ display: currentView === 'timeline' ? 'block' : 'none' }}>
             <TimelineView />
           </div>
+          <div style={{ display: currentView === 'transparency' ? 'block' : 'none' }}>
+            <TransparencyView />
+          </div>
         </main>
       </div>
     </div>

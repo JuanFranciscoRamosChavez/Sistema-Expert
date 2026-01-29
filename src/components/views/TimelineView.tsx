@@ -1,10 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Calendar, Clock, CheckCircle, Filter, ChevronLeft, ChevronRight, MapPin, Target, FileText } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, Filter, ChevronLeft, ChevronRight, MapPin, Target, FileText, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useMemo } from 'react';
 import { useFilteredProjects, useProjectsByYear, useMilestoneProjects } from '@/hooks/useFilteredProjects';
@@ -33,11 +33,13 @@ export function TimelineView() {
 	const now = new Date();
 
 	// Estados de Filtros y Paginación
-	const [timeRange, setTimeRange] = useState<'3' | '6' | '9' | '12+'>('3');
+	const [timeRange, setTimeRange] = useState<'3' | '6' | '9' | '12+'>('12+');
 	const [showFilters, setShowFilters] = useState(false);
 	
 	const [globalAreaFilter, setGlobalAreaFilter] = useState<string>('todos');
 	const [globalStatusFilter, setGlobalStatusFilter] = useState<string>('todos');
+	const [globalEjeFilter, setGlobalEjeFilter] = useState<string>('todos');
+	const [globalMultianualidadFilter, setGlobalMultianualidadFilter] = useState<string>('todos');
 	
 	const [timelineAreaFilter, setTimelineAreaFilter] = useState<string>('todos');
 	const [timelineStatusFilter, setTimelineStatusFilter] = useState<string>('todos');
@@ -66,6 +68,19 @@ export function TimelineView() {
 		days_threshold: daysThreshold,
 		status: globalStatusFilter !== 'todos' ? globalStatusFilter : undefined,
 		direccion: globalAreaFilter !== 'todos' ? globalAreaFilter : undefined,
+		eje_institucional: globalEjeFilter !== 'todos' ? globalEjeFilter : undefined,
+		multianualidad: globalMultianualidadFilter !== 'todos' ? globalMultianualidadFilter as 'si' | 'no' : undefined,
+		ordering: 'fecha_termino_prog',
+		page_size: 'todos'
+	});
+
+	// ✅ HOOK 1.5: Proyectos Atrasados (Overdue)
+	const { data: overdueData, isLoading: overdueLoading, error: overdueError } = useFilteredProjects({
+		is_overdue: true,
+		status: globalStatusFilter !== 'todos' ? globalStatusFilter : undefined,
+		direccion: globalAreaFilter !== 'todos' ? globalAreaFilter : undefined,
+		eje_institucional: globalEjeFilter !== 'todos' ? globalEjeFilter : undefined,
+		multianualidad: globalMultianualidadFilter !== 'todos' ? globalMultianualidadFilter as 'si' | 'no' : undefined,
 		ordering: 'fecha_termino_prog',
 		page_size: 'todos'
 	});
@@ -96,14 +111,26 @@ export function TimelineView() {
 		}
 	);
 
-	// Áreas únicas desde los datos (sin useMemo para evitar loop)
+	// Áreas y Ejes únicos desde los datos (sin useMemo para evitar loop)
 	const areas = new Set<string>();
-	upcomingData?.results.forEach(p => { if (p.area_responsable) areas.add(p.area_responsable); });
-	timelineData?.results.forEach(p => { if (p.area_responsable) areas.add(p.area_responsable); });
-	milestonesData?.results.forEach(p => { if (p.area_responsable) areas.add(p.area_responsable); });
+	const ejes = new Set<string>();
+	upcomingData?.results.forEach(p => { 
+		if (p.area_responsable) areas.add(p.area_responsable);
+		if (p.eje_institucional) ejes.add(p.eje_institucional);
+	});
+	timelineData?.results.forEach(p => { 
+		if (p.area_responsable) areas.add(p.area_responsable);
+		if (p.eje_institucional) ejes.add(p.eje_institucional);
+	});
+	milestonesData?.results.forEach(p => { 
+		if (p.area_responsable) areas.add(p.area_responsable);
+		if (p.eje_institucional) ejes.add(p.eje_institucional);
+	});
 	const uniqueAreas = Array.from(areas).sort();
+	const uniqueEjes = Array.from(ejes).sort();
 
 	const upcomingProjects = upcomingData?.results || [];
+	const overdueProjects = overdueData?.results || [];
 	const timelineProjects = timelineData?.results || [];
 	const paginatedTimelineProjects = timelineProjects;
 	const filteredMilestones = milestonesData?.results || [];
@@ -111,8 +138,8 @@ export function TimelineView() {
 		? Math.ceil(timelineData.count / parseInt(itemsPerPage)) 
 		: 1;
 
-	const loading = upcomingLoading || timelineLoading || milestonesLoading;
-	const hasError = upcomingError || timelineError || milestonesError;
+	const loading = upcomingLoading || overdueLoading || timelineLoading || milestonesLoading;
+	const hasError = upcomingError || overdueError || timelineError || milestonesError;
 
 	if (hasError) {
 		return (
@@ -173,7 +200,7 @@ export function TimelineView() {
               </div>
               
               {showFilters && (
-                <div className="mt-4 p-4 bg-muted/40 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4 animate-slide-down">
+                <div className="mt-4 p-4 bg-muted/40 rounded-lg grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-down">
                   <div>
                     <label className="text-sm font-medium mb-2 block text-foreground">Estado</label>
                     <Select value={globalStatusFilter} onValueChange={setGlobalStatusFilter}>
@@ -198,6 +225,27 @@ export function TimelineView() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block text-foreground">Eje Institucional</label>
+                    <Select value={globalEjeFilter} onValueChange={setGlobalEjeFilter}>
+                      <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos los Ejes</SelectItem>
+                        {uniqueEjes.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block text-foreground">Multianualidad</label>
+                    <Select value={globalMultianualidadFilter} onValueChange={setGlobalMultianualidadFilter}>
+                      <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="si">Solo Multianuales</SelectItem>
+                        <SelectItem value="no">Solo Anuales</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               )}
             </CardHeader>
@@ -205,11 +253,59 @@ export function TimelineView() {
               {upcomingProjects.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {upcomingProjects.map((project) => {
-                    const endDateStr = project.fecha_termino_real || project.fecha_termino_prog;
-                    const endDate = endDateStr ? new Date(endDateStr) : null;
+                    // Lógica mejorada de fecha estimada de finalización
                     const now = new Date();
-                    const diffDays = endDate && !isNaN(endDate.getTime()) ? Math.ceil((endDate.getTime() - now.getTime()) / 86400000) : 0;
-                    const urgency = diffDays <= 30 ? 'high' : diffDays <= 60 ? 'medium' : 'low';
+                    let estimatedEndDate: Date | null = null;
+                    let isDelayed = false;
+                    
+                    // Si ya está completado, usar fecha real
+                    if (project.status === 'completado' && project.fecha_termino_real) {
+                      estimatedEndDate = new Date(project.fecha_termino_real);
+                    }
+                    // Si está en ejecución, estimar basado en avance y duración
+                    else if (project.fecha_inicio_prog && project.fecha_termino_prog) {
+                      const startDate = new Date(project.fecha_inicio_prog);
+                      const plannedEndDate = new Date(project.fecha_termino_prog);
+                      const totalDuration = plannedEndDate.getTime() - startDate.getTime();
+                      const avance = project.avance_fisico_pct || 0;
+                      
+                      // Si el avance es bajo y ya pasó mucho tiempo, ajustar fecha
+                      const elapsedTime = now.getTime() - startDate.getTime();
+                      const expectedProgress = (elapsedTime / totalDuration) * 100;
+                      
+                      // Si el avance real es menor al esperado, estimar retraso
+                      if (avance < expectedProgress && avance > 0) {
+                        const progressRate = avance / expectedProgress;
+                        const adjustedDuration = totalDuration / progressRate;
+                        estimatedEndDate = new Date(startDate.getTime() + adjustedDuration);
+                        isDelayed = estimatedEndDate > plannedEndDate;
+                      } else {
+                        estimatedEndDate = plannedEndDate;
+                      }
+                      
+                      // Ajustar por estado
+                      if (project.status === 'retrasado' || project.status === 'en_riesgo') {
+                        // Agregar 20% más de tiempo si está retrasado/en riesgo
+                        const buffer = totalDuration * 0.2;
+                        estimatedEndDate = new Date(estimatedEndDate.getTime() + buffer);
+                        isDelayed = true;
+                      }
+                    }
+                    // Fallback: usar fecha_termino_prog directamente si no hay inicio
+                    else if (project.fecha_termino_prog) {
+                      estimatedEndDate = new Date(project.fecha_termino_prog);
+                    }
+                    // Último fallback: usar fecha_termino_real si existe
+                    else if (project.fecha_termino_real) {
+                      estimatedEndDate = new Date(project.fecha_termino_real);
+                    }
+                    
+                    const diffDays = estimatedEndDate && !isNaN(estimatedEndDate.getTime()) 
+                      ? Math.ceil((estimatedEndDate.getTime() - now.getTime()) / 86400000) 
+                      : 0;
+                    
+                    // Urgencia considerando retrasos
+                    const urgency = isDelayed || diffDays <= 30 ? 'high' : diffDays <= 60 ? 'medium' : 'low';
                     
                     return (
                       <div 
@@ -222,14 +318,28 @@ export function TimelineView() {
                         )}
                       >
                         <div className="flex justify-between items-start mb-2">
-                          <Badge variant="outline" className="text-[10px] uppercase bg-background/50">
-                            {project.status?.replace('_', ' ') || 'Sin estado'}
-                          </Badge>
+                          <div className="flex gap-1 flex-wrap">
+                            <Badge variant="outline" className="text-[10px] uppercase bg-background/50">
+                              {project.status?.replace('_', ' ') || 'Sin estado'}
+                            </Badge>
+                            {isDelayed && (
+                              <Badge variant="destructive" className="text-[10px]">
+                                Retraso estimado
+                              </Badge>
+                            )}
+                            {project.multianualidad?.toLowerCase() === 'si' && (
+                              <Badge variant="outline" className="text-[10px] border-purple-500 text-purple-700 bg-purple-50 dark:bg-purple-950/20">
+                                Multianual
+                              </Badge>
+                            )}
+                          </div>
                           <span className={cn(
                             "text-xs font-bold",
-                            urgency === 'high' ? "text-red-600 dark:text-red-400" : "text-muted-foreground"
+                            urgency === 'high' ? "text-red-600 dark:text-red-400" : 
+                            urgency === 'medium' ? "text-yellow-600 dark:text-yellow-400" : 
+                            "text-muted-foreground"
                           )}>
-                            {diffDays}d
+                            {diffDays > 0 ? `${diffDays}d` : diffDays === 0 ? 'Hoy' : `${Math.abs(diffDays)}d atrás`}
                           </span>
                         </div>
                         <h4 className="font-medium text-sm line-clamp-2 mb-1" title={project.programa}>
@@ -251,6 +361,63 @@ export function TimelineView() {
               )}
             </CardContent>
           </Card>
+
+          {/* --- SECCIÓN 1.5: PROYECTOS ATRASADOS --- */}
+          {overdueProjects.length > 0 && (
+            <Card className="animate-slide-up border-destructive/40" style={{ animationDelay: '50ms' }}>
+              <CardHeader className="bg-destructive/5">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-destructive">
+                    <AlertCircle className="h-5 w-5" />
+                    Proyectos Atrasados
+                    <Badge variant="destructive" className="ml-2">{overdueProjects.length}</Badge>
+                  </CardTitle>
+                </div>
+                <CardDescription className="text-destructive/80">
+                  Proyectos que superaron su fecha programada de término sin completarse
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {overdueProjects.map((project) => {
+                    const plannedEndDate = project.fecha_termino_prog ? new Date(project.fecha_termino_prog) : null;
+                    const daysOverdue = plannedEndDate ? Math.floor((now.getTime() - plannedEndDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                    
+                    return (
+                      <div 
+                        key={project.id} 
+                        className="bg-destructive/5 hover:bg-destructive/10 transition-colors border-l-4 border-destructive p-4 rounded-lg space-y-2 cursor-pointer"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5">
+                            {daysOverdue} días atrasado
+                          </Badge>
+                          {project.multianualidad?.toLowerCase() === 'si' && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-purple-500 text-purple-700">
+                              Multianual
+                            </Badge>
+                          )}
+                        </div>
+                        <h4 className="font-medium text-sm line-clamp-2 mb-1" title={project.programa}>
+                          {project.programa}
+                        </h4>
+                        <p className="text-xs text-muted-foreground mb-3 truncate">{project.area_responsable}</p>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Progress value={project.avance_fisico_pct || 0} className="h-1.5 flex-1" />
+                            <span className="text-[10px] font-medium text-muted-foreground">{project.avance_fisico_pct}%</span>
+                          </div>
+                          <p className="text-[10px] text-destructive">
+                            Debía terminar: {plannedEndDate?.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* --- SECCIÓN 2: LÍNEA DE TIEMPO (GANTT) --- */}
           <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>

@@ -314,6 +314,23 @@ class ObraFilteredViewSet(viewsets.ReadOnlyModelViewSet):
             except ValueError:
                 pass  # Ignorar valores inválidos
         
+        # FILTRO 4.5: Proyectos atrasados (overdue)
+        is_overdue = self.request.query_params.get('is_overdue')
+        if is_overdue == 'true':
+            qs = qs.filter(
+                fecha_termino_prog__isnull=False,
+                fecha_termino_prog__lt=timezone.now().date(),
+                fecha_termino_real__isnull=True  # No ha terminado realmente
+            )
+        
+        # FILTRO 4.6: Multianualidad
+        multianualidad = self.request.query_params.get('multianualidad')
+        if multianualidad and multianualidad != 'todos':
+            if multianualidad.lower() in ['si', 'sí', 'yes', 'true']:
+                qs = qs.filter(multianualidad__iexact='SI')
+            elif multianualidad.lower() in ['no', 'false']:
+                qs = qs.filter(multianualidad__iexact='NO')
+        
         # FILTRO 4: Año de ejecución (intersección con año objetivo)
         year = self.request.query_params.get('year')
         if year:
