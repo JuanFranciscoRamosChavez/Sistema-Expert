@@ -372,6 +372,9 @@ def clean_beneficiarios_advanced(valor):
 			return int(numero * multiplier)
 		except ValueError:
 			return 0
+	
+	# Si no se encontró ningún número, retornar 0
+	return 0
 
 
 # ==================== NORMALIZACIÓN DE TEXTO (para búsquedas) ====================
@@ -408,5 +411,3 @@ def normalizar_texto(texto):
 	# texto_sin_acentos = texto_sin_acentos.replace('ñ', 'n')
 	
 	return texto_sin_acentos
-			
-	return 0

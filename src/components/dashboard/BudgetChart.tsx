@@ -9,7 +9,7 @@ import {
   Legend, 
   Cell 
 } from 'recharts';
-import { APP_COLORS } from '@/lib/theme';
+import { APP_COLORS, STATUS_COLORS } from '@/lib/theme';
 import { H3, Subtitle } from '@/components/ui/typography';
 import { useFilteredProjects } from '@/hooks/useFilteredProjects';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -105,10 +105,10 @@ export function BudgetChart() {
               <span className="font-mono font-bold text-foreground">{d.avance.toFixed(1)}%</span>
             </p>
             <div className="flex flex-col sm:flex-row sm:justify-between sm:gap-4 pt-1.5 border-t border-border mt-1">
-              <span className={d.isOverBudget ? "text-red-500 font-bold" : "text-emerald-600 font-bold"}>
+              <span className="font-bold" style={{ color: d.isOverBudget ? STATUS_COLORS.en_riesgo : STATUS_COLORS.completado }}>
                 Devengado:
               </span>
-              <span className={d.isOverBudget ? "text-red-500 font-mono font-bold" : "text-emerald-600 font-mono font-bold"}>
+              <span className="font-mono font-bold" style={{ color: d.isOverBudget ? STATUS_COLORS.en_riesgo : STATUS_COLORS.completado }}>
                 {formatMoney(d.devengado)}
               </span>
             </div>

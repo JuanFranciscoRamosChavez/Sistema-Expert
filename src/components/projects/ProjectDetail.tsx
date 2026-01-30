@@ -49,7 +49,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
 	};
 
 	return (
-		<DialogContent className="w-[96vw] max-w-[96vw] sm:w-[90vw] sm:max-w-[90vw] md:max-w-3xl lg:max-w-4xl max-h-[90vh] sm:max-h-[88vh] flex flex-col p-0 gap-0 bg-card border-border overflow-hidden">
+		<DialogContent className="w-[95vw] max-w-[95vw] sm:w-[90vw] sm:max-w-[90vw] md:max-w-3xl lg:max-w-4xl max-h-[92vh] sm:max-h-[90vh] flex flex-col p-0 gap-0 bg-card border-border overflow-hidden">
 			
 			{/* HEADER: Título y Botón X Grande */}
 			<DialogHeader className="p-3 sm:p-4 md:p-6 pb-3 sm:pb-4 border-b border-border bg-card shrink-0 z-10 flex flex-row items-start justify-between space-y-0">
@@ -231,7 +231,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
 						{/* Tarjeta de Tiempos y Avance */}
 						<div className="space-y-2 sm:space-y-3">
 							<H3 className="text-sm sm:text-base flex items-center gap-2">
-								<Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
+								<Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" style={{ color: STATUS_COLORS.info }} />
 								Cronograma y Avance
 							</H3>
 							<div className="p-4 rounded-lg border border-border bg-card space-y-4 shadow-sm">

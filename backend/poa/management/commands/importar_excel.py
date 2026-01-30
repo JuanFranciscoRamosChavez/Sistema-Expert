@@ -50,6 +50,28 @@ class Command(BaseCommand):
 		def safe_str(val):
 			return str(val).strip() if pd.notna(val) else None
 
+		def clean_semaphore(val):
+			"""
+			Normaliza valores de semáforos a: ROJO, AMARILLO, VERDE.
+			Acepta variaciones comunes y retorna el valor estandarizado.
+			"""
+			if pd.isna(val) or val == '':
+				return None
+			
+			# Convertir a string y limpiar
+			v = str(val).strip().upper()
+			
+			# Mapeo de variaciones comunes
+			if v in ['ROJO', 'R', 'RED']:
+				return 'ROJO'
+			elif v in ['AMARILLO', 'A', 'YELLOW', 'ÁMBAR', 'AMBAR']:
+				return 'AMARILLO'
+			elif v in ['VERDE', 'V', 'GREEN']:
+				return 'VERDE'
+			
+			# Si no coincide, retornar None para que se trate como GRIS
+			return None
+
 		def parse_date(val):
 			"""
 			Normaliza fechas al formato ISO 8601 (YYYY-MM-DD).
@@ -208,11 +230,11 @@ class Command(BaseCommand):
 					puntuacion_final_ponderada=puntuacion,  # Calculado automáticamente
 
 					# Semáforos
-					viabilidad_tecnica_semaforo=safe_str(row[29]),
-					viabilidad_presupuestal_semaforo=safe_str(row[30]),
-					viabilidad_juridica_semaforo=safe_str(row[31]),
-					viabilidad_temporal_semaforo=safe_str(row[32]),
-					viabilidad_administrativa_semaforo=safe_str(row[33]),
+					viabilidad_tecnica_semaforo=clean_semaphore(row[29]),
+					viabilidad_presupuestal_semaforo=clean_semaphore(row[30]),
+					viabilidad_juridica_semaforo=clean_semaphore(row[31]),
+					viabilidad_temporal_semaforo=clean_semaphore(row[32]),
+					viabilidad_administrativa_semaforo=clean_semaphore(row[33]),
 
 					# Ubicación y Beneficiarios
 					alcaldias=safe_str(row[34]),

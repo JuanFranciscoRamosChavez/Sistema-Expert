@@ -349,21 +349,31 @@ class ObraFilteredViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.exclude(Q(hitos_comunicacionales__isnull=True) | Q(hitos_comunicacionales=''))
         
         # FILTRO 6: Rango de puntuación (priorización)
+        # Soporta múltiples rangos separados por coma: "alta,muy_alta,critica"
         score_filter = self.request.query_params.get('score_range')
         if score_filter:
             score_ranges = {
-                'critica': (4.5, 5.0),
-                'muy_alta': (3.5, 4.5),
-                'alta': (2.5, 3.5),
-                'media': (1.5, 2.5),
-                'baja': (0, 1.5)
+                'critica': (4.5, 5.01),      # >= 4.5 y < 5.01 (incluye 5.0)
+                'muy_alta': (3.5, 4.5),      # >= 3.5 y < 4.5
+                'alta': (2.5, 3.5),          # >= 2.5 y < 3.5
+                'media': (1.5, 2.5),         # >= 1.5 y < 2.5
+                'baja': (0, 1.5)             # >= 0 y < 1.5
             }
-            if score_filter in score_ranges:
-                min_score, max_score = score_ranges[score_filter]
-                qs = qs.filter(
-                    puntuacion_final_ponderada__gte=min_score,
-                    puntuacion_final_ponderada__lt=max_score
-                )
+            
+            # Soporta múltiples rangos separados por coma
+            ranges_list = [r.strip() for r in score_filter.split(',')]
+            
+            score_conditions = Q()
+            for range_name in ranges_list:
+                if range_name in score_ranges:
+                    min_score, max_score = score_ranges[range_name]
+                    score_conditions |= Q(
+                        puntuacion_final_ponderada__gte=min_score,
+                        puntuacion_final_ponderada__lt=max_score
+                    )
+            
+            if score_conditions:
+                qs = qs.filter(score_conditions)
         
         # FILTRO 7: Viabilidad global (baja, media, alta)
         viabilidad_filter = self.request.query_params.get('viabilidad')
@@ -873,51 +883,82 @@ class TerritoryAggregationsView(APIView):
             'Zona Sur': {'projects': 0, 'total_budget': 0, 'beneficiaries': 0, 'progress_list': []},
             'Centro Histórico': {'projects': 0, 'total_budget': 0, 'beneficiaries': 0, 'progress_list': []},
             'Zona Oriente': {'projects': 0, 'total_budget': 0, 'beneficiaries': 0, 'progress_list': []},
-            'Zona Poniente': {'projects': 0, 'total_budget': 0, 'beneficiaries': 0, 'progress_list': []}
+            'Zona Poniente': {'projects': 0, 'total_budget': 0, 'beneficiaries': 0, 'progress_list': []},
+            'Por Asignar': {'projects': 0, 'total_budget': 0, 'beneficiaries': 0, 'progress_list': []}
+        }
+        
+        # Inicializar contadores de alcance territorial
+        scope_stats = {
+            'una_alcaldia': 0,
+            'multiples_alcaldias': 0,
+            'ciudad_completa': 0,
+            'sin_asignar': 0
         }
         
         for obra in obras:
-            alcaldias_str = (obra.alcaldias or '').lower().strip()
-            alcance = (obra.alcance_territorial or '').lower().strip()
+            alcaldias_str = (obra.alcaldias or '').strip()
+            alcance = (obra.alcance_territorial or '').strip()
             presupuesto = obra.presupuesto_modificado if obra.presupuesto_modificado and obra.presupuesto_modificado > 0 else (obra.anteproyecto_total or 0)
             beneficiarios = obra.beneficiarios_num or 0
             avance = obra.avance_fisico_pct or 0
             
-            # Determinar zonas afectadas usando alcance_territorial
+            # Normalizar textos para mejor matching (sin tildes, minúsculas)
+            alcaldias_norm = normalizar_texto(alcaldias_str) if alcaldias_str else ''
+            alcance_norm = normalizar_texto(alcance) if alcance else ''
+            
+            # Determinar zonas afectadas usando alcance_territorial y alcaldias
             zonas_afectadas = []
             
             # Caso 1: Toda la ciudad - búsqueda flexible
             # Detecta: "toda la ciudad", "16 alcaldías", "todas", "completa", etc.
             is_toda_ciudad = (
-                'toda' in alcance or 
-                'toda' in alcaldias_str or 
-                '16' in alcance or 
-                '16' in alcaldias_str or
-                'completa' in alcance or
-                'todas' in alcance or
-                'todas' in alcaldias_str
+                'toda' in alcance_norm or 
+                'toda' in alcaldias_norm or 
+                '16' in alcance_norm or 
+                '16' in alcaldias_norm or
+                'completa' in alcance_norm or
+                'todas' in alcance_norm or
+                'todas' in alcaldias_norm or
+                'ciudad' in alcance_norm or
+                'cdmx' in alcance_norm
             )
             
             if is_toda_ciudad:
                 zonas_afectadas = ['Zona Norte', 'Zona Sur', 'Centro Histórico', 'Zona Oriente', 'Zona Poniente']
             # Caso 2: Múltiples alcaldías o una alcaldía - buscar en el texto
             else:
-                # Buscar alcaldías en el texto
+                # Buscar alcaldías tanto en alcaldias_str como en alcance_territorial
+                texto_busqueda = f"{alcaldias_norm} {alcance_norm}"
                 for zona, alcaldias in self.ZONA_MAPPING.items():
                     for alcaldia in alcaldias:
-                        if alcaldia.lower() in alcaldias_str:
+                        # Normalizar nombre de alcaldía para matching
+                        alcaldia_norm = normalizar_texto(alcaldia)
+                        if alcaldia_norm in texto_busqueda:
                             if zona not in zonas_afectadas:
                                 zonas_afectadas.append(zona)
             
-            # Si se encontraron zonas, distribuir (si no, el proyecto no se cuenta)
-            if zonas_afectadas:
-                # Prorratear entre zonas afectadas
-                factor = 1.0 / len(zonas_afectadas)
-                for zona in zonas_afectadas:
-                    zone_stats[zona]['projects'] += 1
-                    zone_stats[zona]['total_budget'] += float(presupuesto) * factor
-                    zone_stats[zona]['beneficiaries'] += beneficiarios * factor
-                    zone_stats[zona]['progress_list'].append(avance)
+            # Si NO se encontraron zonas específicas, marcar como "Por Asignar"
+            # Esto asegura transparencia en proyectos sin ubicación definida
+            if not zonas_afectadas:
+                zonas_afectadas = ['Por Asignar']
+                scope_stats['sin_asignar'] += 1
+            elif 'Por Asignar' not in zonas_afectadas:
+                # Clasificar el alcance del proyecto
+                if is_toda_ciudad:
+                    scope_stats['ciudad_completa'] += 1
+                elif len(zonas_afectadas) == 1:
+                    scope_stats['una_alcaldia'] += 1
+                else:
+                    scope_stats['multiples_alcaldias'] += 1
+            
+            # Distribuir entre zonas afectadas
+            # El presupuesto se prorrateo para que la suma total sea correcta
+            factor = 1.0 / len(zonas_afectadas)
+            for zona in zonas_afectadas:
+                zone_stats[zona]['projects'] += 1
+                zone_stats[zona]['total_budget'] += float(presupuesto) * factor
+                zone_stats[zona]['beneficiaries'] += beneficiarios * factor
+                zone_stats[zona]['progress_list'].append(avance)
         
         # Formatear resultados
         result = []
@@ -937,6 +978,12 @@ class TerritoryAggregationsView(APIView):
         return Response({
             'territories': result,
             'total_territories': len(result),
+            'scope_breakdown': {
+                'una_alcaldia': scope_stats['una_alcaldia'],
+                'multiples_alcaldias': scope_stats['multiples_alcaldias'],
+                'ciudad_completa': scope_stats['ciudad_completa'],
+                'sin_asignar': scope_stats['sin_asignar']
+            },
             'timestamp': timezone.now().isoformat()
         })
 

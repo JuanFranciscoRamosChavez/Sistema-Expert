@@ -13,10 +13,11 @@ import { useTerritories } from '@/hooks/useTerritories';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { formatBudgetValue, formatNumber } from '@/lib/formatters';
 import { ZONE_COLORS } from '@/lib/zones';
-import { APP_COLORS } from '@/lib/theme';
+import { APP_COLORS, BUDGET_STYLES } from '@/lib/theme';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { H1, H3, P, Subtitle, Small } from '@/components/ui/typography';
 import { filterProjectsByZone } from '@/lib/territoryCalculations';
+import { cn } from '@/lib/utils';
 
 /**
  * TerritoryView - Sprint 3 usando backend
@@ -120,8 +121,8 @@ export function TerritoryView() {
 					<Subtitle className="mt-1">
 						Distribución geográfica de la inversión y alcance social por zonas estratégicas de la CDMX.
 					</Subtitle>
-					<div className="mt-2 p-2 sm:p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-						<Small className="text-blue-800 dark:text-blue-300 flex items-start gap-2">
+					<div className={cn("mt-2 p-2 sm:p-3 rounded-lg border", BUDGET_STYLES.bg, BUDGET_STYLES.border)}>
+						<Small className={cn("flex items-start gap-2", BUDGET_STYLES.textMuted)}>
 							<Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
 							<span>
 								<strong>Metodología de cálculo:</strong> Se utiliza el campo "Alcance Territorial" para determinar la distribución: 
@@ -240,6 +241,49 @@ export function TerritoryView() {
 						);
 				})}
 			</div>
+
+			{/* Desglose de Alcance Territorial */}
+			{territoriesData?.scope_breakdown && (
+				<Card className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/50 border-slate-200 dark:border-slate-700">
+					<CardHeader className="pb-3">
+						<CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+							<Map className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+							Alcance Territorial de Proyectos
+						</CardTitle>
+						<Subtitle className="text-xs sm:text-sm">
+							Clasificación por cobertura geográfica
+						</Subtitle>
+					</CardHeader>
+					<CardContent>
+						<div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+							<div className="text-center p-3 bg-background/50 rounded-lg border border-border/50">
+								<div className="text-2xl sm:text-3xl font-bold text-primary mb-1">
+									{territoriesData.scope_breakdown.una_alcaldia}
+								</div>
+								<Small className="text-muted-foreground font-semibold">Una Alcaldía</Small>
+							</div>
+							<div className="text-center p-3 bg-background/50 rounded-lg border border-border/50">
+								<div className="text-2xl sm:text-3xl font-bold text-blue-600 dark:text-blue-400 mb-1">
+									{territoriesData.scope_breakdown.multiples_alcaldias}
+								</div>
+								<Small className="text-muted-foreground font-semibold">Múltiples Alcaldías</Small>
+							</div>
+							<div className="text-center p-3 bg-background/50 rounded-lg border border-border/50">
+								<div className="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400 mb-1">
+									{territoriesData.scope_breakdown.ciudad_completa}
+								</div>
+								<Small className="text-muted-foreground font-semibold">Ciudad Completa</Small>
+							</div>
+							<div className="text-center p-3 bg-background/50 rounded-lg border border-border/50">
+								<div className="text-2xl sm:text-3xl font-bold text-slate-500 dark:text-slate-400 mb-1">
+									{territoriesData.scope_breakdown.sin_asignar}
+								</div>
+								<Small className="text-muted-foreground font-semibold">Por Asignar</Small>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+			)}
 
 			{/* Sección de Gráficas */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
@@ -526,8 +570,8 @@ export function TerritoryView() {
 
 
 			<Dialog open={isMapDialogOpen} onOpenChange={setIsMapDialogOpen}>
-				<DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-					<DialogHeader>
+				<DialogContent className="w-[95vw] max-w-4xl max-h-[92vh] md:max-h-[80vh] p-0 overflow-hidden flex flex-col gap-0">
+					<DialogHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3 pr-12 flex-shrink-0 border-b">
 						<DialogTitle className="flex items-center gap-2">
 							<MapPin className="h-5 w-5 text-primary" />
 							Proyectos en {selectedZone}
@@ -536,21 +580,22 @@ export function TerritoryView() {
 							{filteredProjects.length} proyecto{filteredProjects.length !== 1 ? 's' : ''} encontrado{filteredProjects.length !== 1 ? 's' : ''} en esta zona
 						</DialogDescription>
 					</DialogHeader>
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-						{filteredProjects.length > 0 ? (
-							filteredProjects.map(project => (
-								<ProjectCard key={project.id} project={project} />
-							))
-						) : (
-							<div className="col-span-2 text-center py-8 text-muted-foreground">
-								<AlertCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
-							<P>No se encontraron proyectos en esta zona</P>
-							</div>
-						)}
+					<div className="overflow-y-auto flex-1 px-4 md:px-6 py-4">
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+							{filteredProjects.length > 0 ? (
+								filteredProjects.map(project => (
+									<ProjectCard key={project.id} project={project} />
+								))
+							) : (
+								<div className="col-span-2 text-center py-8 text-muted-foreground">
+									<AlertCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
+								<P>No se encontraron proyectos en esta zona</P>
+								</div>
+							)}
+						</div>
 					</div>
 				</DialogContent>
 			</Dialog>
 		</div>
 	);
 }
-

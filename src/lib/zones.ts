@@ -16,7 +16,8 @@ export const ZONE_COLORS: Record<string, string> = {
 	'Centro Histórico': ZONE_PALETTE.centro,
 	'Zona Oriente': ZONE_PALETTE.oriente,
 	'Zona Poniente': ZONE_PALETTE.poniente,
-    'Sin Asignar': ZONE_PALETTE.sin_asignar
+    'Sin Asignar': ZONE_PALETTE.sin_asignar,
+    'Por Asignar': ZONE_PALETTE.sin_asignar
 };
 
 // Función helper para normalizar texto

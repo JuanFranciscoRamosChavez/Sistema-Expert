@@ -17,7 +17,7 @@ export interface ProjectFilters {
   days_threshold?: number | string;
   year?: number;
   has_milestones?: boolean; // 
-  score_range?: 'critica' | 'muy_alta' | 'alta' | 'media' | 'baja';
+  score_range?: string; // Soporta múltiples valores separados por coma: "critica,muy_alta,alta"
   viabilidad?: string; // Soporta múltiples: "baja,media" o "alta"
   is_overdue?: boolean; // Proyectos atrasados
   multianualidad?: 'si' | 'no' | 'todos'; // Filtro de multianualidad

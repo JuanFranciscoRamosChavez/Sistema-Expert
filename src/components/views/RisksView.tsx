@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { H1, P, Subtitle, Small } from '@/components/ui/typography';
-import { PRIORITY_COLORS } from '@/lib/theme';
+import { PRIORITY_COLORS, SCORE_STYLES, URGENCY_STYLES } from '@/lib/theme';
 import { 
   AlertTriangle, 
   AlertCircle, 
@@ -36,24 +36,39 @@ import { Button } from '@/components/ui/button';
 
 // --- CONFIGURACIÓN ESTÁTICA ---
 const RISK_CATEGORIES = [
-  { name: 'Crítica', description: 'Punt. 4.5-5.0', icon: AlertTriangle, color: PRIORITY_COLORS.critica, bgColor: 'bg-red-50 dark:bg-red-900/20' },
-  { name: 'Muy Alta', description: 'Punt. 3.5-4.4', icon: AlertCircle, color: PRIORITY_COLORS.muy_alta, bgColor: 'bg-orange-50 dark:bg-orange-900/20' },
-  { name: 'Alta', description: 'Punt. 2.5-3.4', icon: TrendingUp, color: PRIORITY_COLORS.alta, bgColor: 'bg-amber-50 dark:bg-amber-900/20' },
-  { name: 'Media', description: 'Punt. 1.5-2.4', icon: Activity, color: PRIORITY_COLORS.media, bgColor: 'bg-blue-50 dark:bg-blue-900/20' },
-  { name: 'Baja', description: 'Punt. 1.0-1.4', icon: CheckCircle2, color: PRIORITY_COLORS.baja, bgColor: 'bg-emerald-50 dark:bg-emerald-900/20' },
+  { name: 'Crítica', description: 'Punt. 4.5-5.0', icon: AlertTriangle, color: PRIORITY_COLORS.critica, bgColor: SCORE_STYLES.critica.bg.replace('bg-', 'bg-') + '-50 dark:' + SCORE_STYLES.critica.bg.replace('bg-', 'bg-') + '-900/20' },
+  { name: 'Muy Alta', description: 'Punt. 3.5-4.4', icon: AlertCircle, color: PRIORITY_COLORS.muy_alta, bgColor: SCORE_STYLES.muy_alta.bg.replace('bg-', 'bg-') + '-50 dark:' + SCORE_STYLES.muy_alta.bg.replace('bg-', 'bg-') + '-900/20' },
+  { name: 'Alta', description: 'Punt. 2.5-3.4', icon: TrendingUp, color: PRIORITY_COLORS.alta, bgColor: SCORE_STYLES.alta.bg.replace('bg-', 'bg-') + '-50 dark:' + SCORE_STYLES.alta.bg.replace('bg-', 'bg-') + '-900/20' },
+  { name: 'Media', description: 'Punt. 1.5-2.4', icon: Activity, color: PRIORITY_COLORS.media, bgColor: SCORE_STYLES.media.bg.replace('bg-', 'bg-') + '-50 dark:' + SCORE_STYLES.media.bg.replace('bg-', 'bg-') + '-900/20' },
+  { name: 'Baja', description: 'Punt. 1.0-1.4', icon: CheckCircle2, color: PRIORITY_COLORS.baja, bgColor: SCORE_STYLES.baja.bg.replace('bg-', 'bg-') + '-50 dark:' + SCORE_STYLES.baja.bg.replace('bg-', 'bg-') + '-900/20' },
 ];
 
 // --- COMPONENTES AUXILIARES (MEMOIZADOS) ---
 
 const SemaphoreIcon = React.memo(({ label, status, Icon }: { label: string, status: string, Icon: any }) => {
-  if (status !== 'ROJO' && status !== 'AMARILLO') return null;
+  // No mostrar semáforos GRIS (sin información)
+  if (!status || status === 'GRIS') return null;
+  
+  // Definir colores según el estado del semáforo
   const isRed = status === 'ROJO';
+  const isYellow = status === 'AMARILLO';
+  const isGreen = status === 'VERDE';
+  
+  // Colores y estilos dinámicos
+  const bgClass = isRed ? 'bg-red-100 dark:bg-red-950/30' : 
+                  isYellow ? 'bg-amber-100 dark:bg-amber-950/30' : 
+                  'bg-emerald-100 dark:bg-emerald-950/30';
+  
+  const iconColor = isRed ? PRIORITY_COLORS.critica : 
+                    isYellow ? PRIORITY_COLORS.alta : 
+                    '#16a34a'; // Verde para OK
+  
   return (
     <TooltipProvider delayDuration={300}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className={cn("p-1.5 rounded-full hover:bg-muted transition-colors cursor-help", isRed ? "bg-red-100/80" : "bg-yellow-100/80")}>
-            <Icon className="h-3.5 w-3.5" style={{ color: isRed ? PRIORITY_COLORS.critica : PRIORITY_COLORS.alta }} />
+          <div className={cn("p-1.5 rounded-full hover:bg-muted transition-colors cursor-help", bgClass)}>
+            <Icon className="h-3.5 w-3.5" style={{ color: iconColor }} />
           </div>
         </TooltipTrigger>
         <TooltipContent side="top">
@@ -132,6 +147,8 @@ const MobileProjectCard = React.memo(({ project, isExpanded, onToggle }: { proje
           <SemaphoreIcon label="Técnica" status={project.semaphores.tecnica} Icon={Activity} />
           <SemaphoreIcon label="Presupuestal" status={project.semaphores.presupuestal} Icon={Scale} />
           <SemaphoreIcon label="Jurídica" status={project.semaphores.juridica} Icon={Gavel} />
+          <SemaphoreIcon label="Temporal" status={project.semaphores.temporal} Icon={Clock} />
+          <SemaphoreIcon label="Administrativa" status={project.semaphores.administrativa} Icon={Briefcase} />
         </div>
 
         {/* Expandible */}
@@ -376,6 +393,8 @@ export function RisksView() {
                             <SemaphoreIcon label="Técnica" status={project.semaphores.tecnica} Icon={Activity} />
                             <SemaphoreIcon label="Presupuestal" status={project.semaphores.presupuestal} Icon={Scale} />
                             <SemaphoreIcon label="Jurídica" status={project.semaphores.juridica} Icon={Gavel} />
+                            <SemaphoreIcon label="Temporal" status={project.semaphores.temporal} Icon={Clock} />
+                            <SemaphoreIcon label="Administrativa" status={project.semaphores.administrativa} Icon={Briefcase} />
                           </div>
                         </td>
                       </tr>
@@ -442,7 +461,7 @@ export function RisksView() {
                 <div className="text-center py-8 text-muted-foreground bg-muted/20 rounded-lg border border-dashed"><p className="text-sm">Sin acciones pendientes.</p></div>
               ) : (
                 mitigationProjects.map(project => (
-                  <div key={project.id} className="flex flex-col md:flex-row items-start gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg border transition-all hover:shadow-sm bg-orange-50/50 border-orange-100">
+                  <div key={project.id} className={cn("flex flex-col md:flex-row items-start gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-lg border transition-all hover:shadow-sm", SCORE_STYLES.alta.bg.replace('bg-', 'bg-') + '-50/50', SCORE_STYLES.alta.border.replace('border-', 'border-') + '-100')}>
                     <div className="p-1.5 sm:p-2 rounded-full shrink-0 shadow-sm bg-background mt-0.5" style={{ color: PRIORITY_COLORS.alta }}>
                       <ShieldAlert className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </div>

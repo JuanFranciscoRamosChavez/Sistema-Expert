@@ -11,9 +11,17 @@ interface TerritoryData {
   formatted_budget: string;
 }
 
+interface ScopeBreakdown {
+  una_alcaldia: number;
+  multiples_alcaldias: number;
+  ciudad_completa: number;
+  sin_asignar: number;
+}
+
 interface TerritoriesResponse {
   territories: TerritoryData[];
   total_territories: number;
+  scope_breakdown: ScopeBreakdown;
   timestamp: string;
 }
 

@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Calendar, Clock, CheckCircle, Filter, ChevronLeft, ChevronRight, MapPin, Target, FileText, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { useFilteredProjects, useProjectsByYear, useMilestoneProjects } from '@/hooks/useFilteredProjects';
+import { URGENCY_STYLES, MULTIANUAL_STYLES, BUDGET_STYLES, TIMELINE_STATUS_STYLES, getScoreStyles, STATUS_COLORS } from '@/lib/theme';
 import type { Project } from '@/types';
 
 const months = [
@@ -49,8 +50,13 @@ export function TimelineView() {
 	const [milestoneAreaFilter, setMilestoneAreaFilter] = useState<string>('todos');
 	const [milestoneStatusFilter, setMilestoneStatusFilter] = useState<string>('todos');
 	const [milestoneScoreFilter, setMilestoneScoreFilter] = useState<string>('todos');
+	const [milestoneEjeFilter, setMilestoneEjeFilter] = useState<string>('todos');
 	
 	const [selectedMilestone, setSelectedMilestone] = useState<Project | null>(null);
+
+	// Ref para mantener posición del scroll
+	const scrollPositionRef = useRef<number>(0);
+	const preventScrollRef = useRef<boolean>(false);
 
 	// Mapeo de timeRange a días
 	const daysThreshold = useMemo(() => {
@@ -108,6 +114,7 @@ export function TimelineView() {
 		{
 			direccion: milestoneAreaFilter !== 'todos' ? milestoneAreaFilter : undefined,
 			status: milestoneStatusFilter !== 'todos' ? milestoneStatusFilter : undefined,
+			eje_institucional: milestoneEjeFilter !== 'todos' ? milestoneEjeFilter : undefined,
 		}
 	);
 
@@ -141,6 +148,17 @@ export function TimelineView() {
 	const loading = upcomingLoading || overdueLoading || timelineLoading || milestonesLoading;
 	const hasError = upcomingError || overdueError || timelineError || milestonesError;
 
+	// Prevenir scroll automático cuando cambian los filtros de hitos
+	// useLayoutEffect se ejecuta ANTES del repaint, previniendo el scroll
+	useLayoutEffect(() => {
+		if (preventScrollRef.current && scrollPositionRef.current > 0) {
+			requestAnimationFrame(() => {
+				window.scrollTo(0, scrollPositionRef.current);
+				preventScrollRef.current = false;
+			});
+		}
+	}, [filteredMilestones]);
+
 	if (hasError) {
 		return (
 			<Card className="border-destructive/50 bg-destructive/5">
@@ -168,11 +186,11 @@ export function TimelineView() {
 		{!loading && (
 			<>
 				{/* --- SECCIÓN 1: PRÓXIMAS ENTREGAS --- */}
-          <Card className="animate-slide-up">
+          <Card className="animate-slide-up scroll-mt-4">
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-yellow-500" />
+                  <Clock className="h-5 w-5" style={{ color: STATUS_COLORS.retrasado }} />
                   Próximas Entregas
                 </CardTitle>
                 <div className="flex flex-wrap items-center gap-2">
@@ -200,7 +218,7 @@ export function TimelineView() {
               </div>
               
               {showFilters && (
-                <div className="mt-4 p-4 bg-muted/40 rounded-lg grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-down">
+                <div className="mt-4 p-3 md:p-4 bg-muted/40 rounded-lg grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 animate-slide-down">
                   <div>
                     <label className="text-sm font-medium mb-2 block text-foreground">Estado</label>
                     <Select value={globalStatusFilter} onValueChange={setGlobalStatusFilter}>
@@ -251,7 +269,7 @@ export function TimelineView() {
             </CardHeader>
             <CardContent>
               {upcomingProjects.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
                   {upcomingProjects.map((project) => {
                     // Lógica mejorada de fecha estimada de finalización
                     const now = new Date();
@@ -311,10 +329,10 @@ export function TimelineView() {
                       <div 
                         key={project.id} 
                         className={cn(
-                          "p-4 rounded-lg border shadow-sm transition-all hover:shadow-md",
-                          urgency === 'high' && "border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900/50",
-                          urgency === 'medium' && "border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-900/50",
-                          urgency === 'low' && "bg-card"
+                          "p-3 md:p-4 rounded-lg border shadow-sm transition-all hover:shadow-md",
+                          urgency === 'high' && URGENCY_STYLES.high.border + " " + URGENCY_STYLES.high.bg,
+                          urgency === 'medium' && URGENCY_STYLES.medium.border + " " + URGENCY_STYLES.medium.bg,
+                          urgency === 'low' && URGENCY_STYLES.low.bg + " " + URGENCY_STYLES.low.border
                         )}
                       >
                         <div className="flex justify-between items-start mb-2">
@@ -328,16 +346,16 @@ export function TimelineView() {
                               </Badge>
                             )}
                             {project.multianualidad?.toLowerCase() === 'si' && (
-                              <Badge variant="outline" className="text-[10px] border-purple-500 text-purple-700 bg-purple-50 dark:bg-purple-950/20">
+                              <Badge variant="outline" className={cn("text-[10px]", MULTIANUAL_STYLES.border, MULTIANUAL_STYLES.text, MULTIANUAL_STYLES.bg)}>
                                 Multianual
                               </Badge>
                             )}
                           </div>
                           <span className={cn(
                             "text-xs font-bold",
-                            urgency === 'high' ? "text-red-600 dark:text-red-400" : 
-                            urgency === 'medium' ? "text-yellow-600 dark:text-yellow-400" : 
-                            "text-muted-foreground"
+                            urgency === 'high' ? URGENCY_STYLES.high.text : 
+                            urgency === 'medium' ? URGENCY_STYLES.medium.text : 
+                            URGENCY_STYLES.low.text
                           )}>
                             {diffDays > 0 ? `${diffDays}d` : diffDays === 0 ? 'Hoy' : `${Math.abs(diffDays)}d atrás`}
                           </span>
@@ -364,7 +382,7 @@ export function TimelineView() {
 
           {/* --- SECCIÓN 1.5: PROYECTOS ATRASADOS --- */}
           {overdueProjects.length > 0 && (
-            <Card className="animate-slide-up border-destructive/40" style={{ animationDelay: '50ms' }}>
+            <Card className="animate-slide-up border-destructive/40 scroll-mt-4" style={{ animationDelay: '50ms' }}>
               <CardHeader className="bg-destructive/5">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-destructive">
@@ -386,14 +404,14 @@ export function TimelineView() {
                     return (
                       <div 
                         key={project.id} 
-                        className="bg-destructive/5 hover:bg-destructive/10 transition-colors border-l-4 border-destructive p-4 rounded-lg space-y-2 cursor-pointer"
+                        className="bg-destructive/5 hover:bg-destructive/10 transition-colors border-l-4 border-destructive p-3 md:p-4 rounded-lg space-y-2 cursor-pointer"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5">
                             {daysOverdue} días atrasado
                           </Badge>
                           {project.multianualidad?.toLowerCase() === 'si' && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-purple-500 text-purple-700">
+                            <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 h-5", MULTIANUAL_STYLES.border, MULTIANUAL_STYLES.text)}>
                               Multianual
                             </Badge>
                           )}
@@ -420,7 +438,7 @@ export function TimelineView() {
           )}
 
           {/* --- SECCIÓN 2: LÍNEA DE TIEMPO (GANTT) --- */}
-          <Card className="animate-slide-up" style={{ animationDelay: '100ms' }}>
+          <Card className="animate-slide-up scroll-mt-4" style={{ animationDelay: '100ms' }}>
             <CardHeader>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <CardTitle className="flex items-center gap-2">
@@ -460,8 +478,9 @@ export function TimelineView() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto pb-2">
-                <div className="min-w-[800px]">
+              <div className="w-full">
+                {/* Vista Desktop - Gantt */}
+                <div className="hidden md:block">
                   <div className="flex border-b border-border pb-2 mb-4">
                     <div className="w-64 shrink-0 px-2 font-medium text-sm text-muted-foreground">Proyecto</div>
                     <div className="flex-1 flex">
@@ -477,19 +496,35 @@ export function TimelineView() {
                       const end = p.fecha_termino_real ? new Date(p.fecha_termino_real) : (p.fecha_termino_prog ? new Date(p.fecha_termino_prog) : null);
                       if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) return null;
                       
-                      const startMonth = start.getFullYear() < currentYear ? 0 : start.getMonth();
-                      const endMonth = end.getFullYear() > currentYear ? 11 : end.getMonth();
-                      const left = (startMonth / 12) * 100;
-                      const width = Math.max(((endMonth - startMonth + 1) / 12) * 100, 2);
+                      // Calcular meses dentro del año actual (2026)
+                      const yearStart = new Date(currentYear, 0, 1); // 1 enero 2026
+                      const yearEnd = new Date(currentYear, 11, 31); // 31 diciembre 2026
                       
-                      const statusColors: Record<string, string> = {
-                        en_ejecucion: 'bg-blue-500',
-                        completado: 'bg-green-500',
-                        retrasado: 'bg-yellow-500',
-                        en_riesgo: 'bg-red-500',
-                        planificado: 'bg-gray-400'
-                      };
-                      const color = statusColors[p.status || ''] || 'bg-gray-300';
+                      // Limitar fechas al año actual
+                      const projectStartInYear = start < yearStart ? yearStart : start;
+                      const projectEndInYear = end > yearEnd ? yearEnd : end;
+                      
+                      // Si el proyecto no intersecta con 2026, no mostrarlo
+                      if (projectStartInYear > yearEnd || projectEndInYear < yearStart) return null;
+                      
+                      // Calcular mes de inicio y fin dentro del año (0-11)
+                      const startMonth = projectStartInYear.getMonth();
+                      const endMonth = projectEndInYear.getMonth();
+                      
+                      // Calcular día exacto dentro del mes para mayor precisión
+                      const startDay = projectStartInYear.getDate();
+                      const endDay = projectEndInYear.getDate();
+                      
+                      // Posición: (mes + fracción del mes) / 12 * 100
+                      const startPosition = (startMonth + (startDay - 1) / 30) / 12 * 100;
+                      const endPosition = (endMonth + endDay / 30) / 12 * 100;
+                      
+                      // Ancho mínimo de 3% para visibilidad
+                      const width = Math.max(endPosition - startPosition, 3);
+                      const left = startPosition;
+                      
+                      const statusStyle = TIMELINE_STATUS_STYLES[p.status as keyof typeof TIMELINE_STATUS_STYLES] || TIMELINE_STATUS_STYLES.planificado;
+                      const color = statusStyle.bg;
                       
                       return (
                         <div key={p.id} className="flex items-center hover:bg-muted/30 py-1.5 rounded transition-colors">
@@ -503,15 +538,61 @@ export function TimelineView() {
                                 <div key={i} className={cn("flex-1 border-r border-border/40", i === now.getMonth() && "bg-primary/5")} />
                               ))}
                             </div>
+                            {/* Indicador del día actual */}
+                            {now.getFullYear() === currentYear && (
+                              <div 
+                                className="absolute top-0 bottom-0 w-0.5 bg-primary z-10"
+                                style={{ left: `${((now.getMonth() + now.getDate() / 30) / 12) * 100}%` }}
+                              >
+                                <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-semibold text-primary whitespace-nowrap">
+                                  Hoy
+                                </div>
+                              </div>
+                            )}
                             <div 
                               className={cn("absolute top-1.5 h-3 rounded-full shadow-sm opacity-90", color)}
                               style={{ left: `${left}%`, width: `${width}%` }}
+                              title={`${formatDate(p.fecha_inicio_prog)} - ${formatDate(p.fecha_termino_prog || p.fecha_termino_real)}`}
                             />
                           </div>
                         </div>
                       );
                     })}
                   </div>
+                </div>
+
+                {/* Vista Mobile - Cards */}
+                <div className="md:hidden space-y-3">
+                  {paginatedTimelineProjects.map(p => {
+                    const start = p.fecha_inicio_prog ? new Date(p.fecha_inicio_prog) : null;
+                    const end = p.fecha_termino_real ? new Date(p.fecha_termino_real) : (p.fecha_termino_prog ? new Date(p.fecha_termino_prog) : null);
+                    
+                    const statusStyle = TIMELINE_STATUS_STYLES[p.status as keyof typeof TIMELINE_STATUS_STYLES] || TIMELINE_STATUS_STYLES.planificado;
+                    
+                    return (
+                      <div key={p.id} className={cn("border rounded-lg p-3", statusStyle.bgCard)}>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h4 className="text-sm font-semibold flex-1 line-clamp-2">{p.programa}</h4>
+                          <Badge variant="outline" className={cn("text-[9px] shrink-0", statusStyle.text)}>
+                            {p.status?.replace('_', ' ').toUpperCase()}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">{p.area_responsable}</p>
+                        {start && end && (
+                          <div className="text-xs text-muted-foreground space-y-1">
+                            <div className="flex justify-between">
+                              <span>Inicio:</span>
+                              <span className="font-medium">{start.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Fin:</span>
+                              <span className="font-medium">{end.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               
@@ -534,43 +615,88 @@ export function TimelineView() {
           </Card>
 
           {/* --- SECCIÓN 3: HITOS IMPORTANTES --- */}
-          <Card className="animate-slide-up" style={{ animationDelay: '200ms' }}>
+          <Card id="hitos-section" className="animate-slide-up scroll-mt-4" style={{ animationDelay: '200ms' }}>
             <CardHeader>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <CheckCircle className="h-5 w-5" style={{ color: STATUS_COLORS.completado }} />
                   Hitos Importantes del Año
+                  <Badge variant="outline" className="ml-2">{filteredMilestones.length}</Badge>
                 </CardTitle>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Select value={milestoneAreaFilter} onValueChange={setMilestoneAreaFilter}>
-                    <SelectTrigger className="w-[130px] text-xs h-8"><SelectValue placeholder="Área" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todas las Áreas</SelectItem>
-                      {uniqueAreas.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-muted-foreground font-medium">Área</label>
+                    <Select value={milestoneAreaFilter} onValueChange={(value) => {
+                      scrollPositionRef.current = window.scrollY;
+                      preventScrollRef.current = true;
+                      setMilestoneAreaFilter(value);
+                    }}>
+                      <SelectTrigger className="w-[140px] text-xs h-8">
+                        <SelectValue placeholder="Todas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todas las Áreas</SelectItem>
+                        {uniqueAreas.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   
-                  <Select value={milestoneStatusFilter} onValueChange={setMilestoneStatusFilter}>
-                    <SelectTrigger className="w-[130px] text-xs h-8"><SelectValue placeholder="Estado" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      <SelectItem value="en_ejecucion">En Ejecución</SelectItem>
-                      <SelectItem value="completado">Completado</SelectItem>
-                      <SelectItem value="en_riesgo">En Riesgo</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-muted-foreground font-medium">Estado</label>
+                    <Select value={milestoneStatusFilter} onValueChange={(value) => {
+                      scrollPositionRef.current = window.scrollY;
+                      preventScrollRef.current = true;
+                      setMilestoneStatusFilter(value);
+                    }}>
+                      <SelectTrigger className="w-[140px] text-xs h-8">
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="en_ejecucion">En Ejecución</SelectItem>
+                        <SelectItem value="completado">Completado</SelectItem>
+                        <SelectItem value="en_riesgo">En Riesgo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   
-                  <Select value={milestoneScoreFilter} onValueChange={setMilestoneScoreFilter}>
-                    <SelectTrigger className="w-[130px] text-xs h-8"><SelectValue placeholder="Prioridad" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todas</SelectItem>
-                      <SelectItem value="critica">Crítica</SelectItem>
-                      <SelectItem value="muy_alta">Muy Alta</SelectItem>
-                      <SelectItem value="alta">Alta</SelectItem>
-                      <SelectItem value="media">Media</SelectItem>
-                      <SelectItem value="baja">Baja</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-muted-foreground font-medium">Prioridad</label>
+                    <Select value={milestoneScoreFilter} onValueChange={(value) => {
+                      scrollPositionRef.current = window.scrollY;
+                      preventScrollRef.current = true;
+                      setMilestoneScoreFilter(value);
+                    }}>
+                      <SelectTrigger className="w-[140px] text-xs h-8">
+                        <SelectValue placeholder="Todas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todas</SelectItem>
+                        <SelectItem value="critica">Crítica</SelectItem>
+                        <SelectItem value="muy_alta">Muy Alta</SelectItem>
+                        <SelectItem value="alta">Alta</SelectItem>
+                        <SelectItem value="media">Media</SelectItem>
+                        <SelectItem value="baja">Baja</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-muted-foreground font-medium">Eje Institucional</label>
+                    <Select value={milestoneEjeFilter} onValueChange={(value) => {
+                      scrollPositionRef.current = window.scrollY;
+                      preventScrollRef.current = true;
+                      setMilestoneEjeFilter(value);
+                    }}>
+                      <SelectTrigger className="w-[140px] text-xs h-8">
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos los Ejes</SelectItem>
+                        {uniqueEjes.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             </CardHeader>
@@ -580,11 +706,11 @@ export function TimelineView() {
                 <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
                   {filteredMilestones.length > 0 ? (
                     filteredMilestones.map((project) => {
-                      const statusColor = project.status === 'completado' 
-                        ? 'bg-green-500' 
-                        : project.status === 'en_riesgo' 
-                        ? 'bg-red-500' 
-                        : 'bg-blue-500';
+                      const statusStyle = TIMELINE_STATUS_STYLES[project.status as keyof typeof TIMELINE_STATUS_STYLES] || TIMELINE_STATUS_STYLES.en_ejecucion;
+                      const statusColor = statusStyle.bg;
+                      
+                      const score = project.puntuacion_final_ponderada || 0;
+                      const scoreStyles = getScoreStyles(score);
                       
                       return (
                         <div
@@ -597,22 +723,37 @@ export function TimelineView() {
                             statusColor
                           )} />
                           
-                          <div className="border border-border/60 bg-card rounded-lg p-4 hover:shadow-md hover:border-primary/30 transition-all">
+                          <div className="border border-border/60 bg-card rounded-lg p-3 md:p-4 hover:shadow-md hover:border-primary/30 transition-all">
                             <div className="flex justify-between items-start gap-2 mb-2">
-                              <div className="min-w-0">
+                              <div className="min-w-0 flex-1">
                                 <h4 className="text-sm font-semibold line-clamp-1 text-foreground">{project.programa}</h4>
                                 <p className="text-xs text-muted-foreground truncate">{project.area_responsable}</p>
                               </div>
-                              <Badge variant="secondary" className="text-[10px] shrink-0 font-normal">
-                                Score: {project.puntuacion_final_ponderada?.toFixed(1) || 'N/A'}
-                              </Badge>
+                              <div className="flex gap-1 shrink-0">
+                                <Badge variant="outline" className={cn("text-[10px] font-semibold border-2", scoreStyles.border, scoreStyles.text)}>
+                                  {score.toFixed(1)}
+                                </Badge>
+                                {project.multianualidad?.toLowerCase() === 'si' && (
+                                  <Badge variant="outline" className={cn("text-[9px]", MULTIANUAL_STYLES.border, MULTIANUAL_STYLES.text, MULTIANUAL_STYLES.bg)}>
+                                    Multi
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                             <p className="text-sm text-muted-foreground mt-2 line-clamp-2 italic border-l-2 border-primary/20 pl-2">
                               "{project.hitos_comunicacionales}"
                             </p>
-                            <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground/70">
-                              <MapPin className="h-3 w-3" />
-                              <span className="truncate">{project.ubicacion_especifica || 'Ubicación no especificada'}</span>
+                            <div className="mt-3 flex items-center justify-between gap-2 text-xs">
+                              <div className="flex items-center gap-1.5 text-muted-foreground/70">
+                                <MapPin className="h-3 w-3" />
+                                <span className="truncate">{project.ubicacion_especifica || 'Sin ubicación'}</span>
+                              </div>
+                              {project.fecha_termino_prog && (
+                                <div className="flex items-center gap-1 text-muted-foreground shrink-0">
+                                  <Clock className="h-3 w-3" />
+                                  <span className="text-[10px]">{formatDate(project.fecha_termino_prog)}</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -630,19 +771,33 @@ export function TimelineView() {
 
           {/* --- MODAL DETALLE --- */}
           <Dialog open={!!selectedMilestone} onOpenChange={(open) => !open && setSelectedMilestone(null)}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="w-[95vw] max-w-3xl max-h-[92vh] md:max-h-[90vh] p-0 overflow-hidden flex flex-col gap-0">
               {selectedMilestone && (
                 <>
-                  <DialogHeader>
-                    <DialogTitle className="text-lg md:text-xl">{selectedMilestone.programa}</DialogTitle>
+                  <DialogHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3 pr-12 flex-shrink-0 border-b">
+                    <DialogTitle className="text-lg md:text-xl leading-tight mb-2">
+                      {selectedMilestone.programa}
+                    </DialogTitle>
                     <DialogDescription className="flex items-center gap-1.5 text-xs md:text-sm">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {selectedMilestone.area_responsable} • {selectedMilestone.ubicacion_especifica || "Sin ubicación"}
+                      <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate">{selectedMilestone.area_responsable} • {selectedMilestone.ubicacion_especifica || "Sin ubicación"}</span>
                     </DialogDescription>
+                    <div className="flex gap-2 mt-3">
+                      <Badge variant={selectedMilestone.status === 'completado' ? 'default' : selectedMilestone.status === 'en_riesgo' ? 'destructive' : 'secondary'} className="text-[10px]">
+                        {selectedMilestone.status?.replace('_', ' ').toUpperCase()}
+                      </Badge>
+                      {selectedMilestone.multianualidad?.toLowerCase() === 'si' && (
+                        <Badge variant="outline" className={cn("text-[9px]", MULTIANUAL_STYLES.border, MULTIANUAL_STYLES.text, MULTIANUAL_STYLES.bg)}>
+                          Multianual
+                        </Badge>
+                      )}
+                    </div>
                   </DialogHeader>
                   
-                  <div className="space-y-4 mt-2">
-                    <div className="bg-muted/30 p-4 rounded-lg border border-border/50">
+                  {/* Contenido con scroll */}
+                  <div className="overflow-y-auto flex-1 px-4 md:px-6 py-4 space-y-4">
+                    {/* Hito Comunicacional */}
+                    <div className="bg-muted/30 p-3 md:p-4 rounded-lg border border-border/50">
                       <h4 className="text-sm font-semibold flex items-center gap-2 mb-2 text-primary">
                         <CheckCircle className="h-4 w-4" />
                         Hito Comunicacional
@@ -651,10 +806,65 @@ export function TimelineView() {
                         "{selectedMilestone.hitos_comunicacionales}"
                       </p>
                     </div>
+
+                    {/* Fechas y Timeline */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+                      <div className="bg-card border rounded-lg p-2 md:p-3">
+                        <p className="text-[10px] text-muted-foreground uppercase font-medium mb-1">Fecha de Inicio</p>
+                        <p className="text-xs md:text-sm font-semibold">{formatDate(selectedMilestone.fecha_inicio_prog)}</p>
+                      </div>
+                      <div className="bg-card border rounded-lg p-2 md:p-3">
+                        <p className="text-[10px] text-muted-foreground uppercase font-medium mb-1">Fecha de Fin</p>
+                        <p className="text-xs md:text-sm font-semibold">{formatDate(selectedMilestone.fecha_termino_prog)}</p>
+                      </div>
+                      <div className="bg-card border rounded-lg p-2 md:p-3">
+                        <p className="text-[10px] text-muted-foreground uppercase font-medium mb-1">Duración</p>
+                        <p className="text-xs md:text-sm font-semibold">
+                          {selectedMilestone.duracion_meses 
+                            ? `${selectedMilestone.duracion_meses} ${selectedMilestone.duracion_meses === 1 ? 'mes' : 'meses'}` 
+                            : 'No especificada'}
+                        </p>
+                      </div>
+                      <div className="bg-card border rounded-lg p-2 md:p-3">
+                        <p className="text-[10px] text-muted-foreground uppercase font-medium mb-1">Beneficiarios</p>
+                        <p className="text-xs md:text-sm font-semibold">
+                          {selectedMilestone.beneficiarios 
+                            ? selectedMilestone.beneficiarios.toLocaleString('es-MX') 
+                            : 'No especificados'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Presupuesto */}
+                    <div className={cn("rounded-lg p-3 md:p-4", BUDGET_STYLES.bg, BUDGET_STYLES.border, "border")}>
+                      <h4 className={cn("text-sm font-semibold mb-3", BUDGET_STYLES.text)}>Presupuesto</h4>
+                      <div className="grid grid-cols-2 gap-3 md:gap-4">
+                        <div>
+                          <p className={cn("text-xs", BUDGET_STYLES.textMuted)}>Total</p>
+                          <p className={cn("text-base md:text-lg font-bold truncate", BUDGET_STYLES.text)}>
+                            ${(selectedMilestone.presupuesto || 0).toLocaleString('es-MX', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                          </p>
+                        </div>
+                        <div>
+                          <p className={cn("text-xs", BUDGET_STYLES.textMuted)}>Ejecutado</p>
+                          <p className={cn("text-base md:text-lg font-bold truncate", BUDGET_STYLES.text)}>
+                            ${(selectedMilestone.ejecutado || 0).toLocaleString('es-MX', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        <div className={cn("flex justify-between text-xs mb-1", BUDGET_STYLES.textMuted)}>
+                          <span>Avance Financiero</span>
+                          <span className="font-semibold">{selectedMilestone.avance_financiero_pct || 0}%</span>
+                        </div>
+                        <Progress value={selectedMilestone.avance_financiero_pct || 0} className="h-2" />
+                      </div>
+                    </div>
                     
+                    {/* Objetivo y Observaciones */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <h4 className="text-sm font-semibold flex items-center gap-2 mb-1">
+                        <h4 className="text-sm font-semibold flex items-center gap-2 mb-2">
                           <Target className="h-4 w-4 text-muted-foreground" />
                           Objetivo
                         </h4>
@@ -664,7 +874,7 @@ export function TimelineView() {
                       </div>
                       
                       <div>
-                        <h4 className="text-sm font-semibold flex items-center gap-2 mb-1">
+                        <h4 className="text-sm font-semibold flex items-center gap-2 mb-2">
                           <FileText className="h-4 w-4 text-muted-foreground" />
                           Observaciones
                         </h4>
@@ -673,21 +883,32 @@ export function TimelineView() {
                         </p>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center justify-between pt-4 border-t border-border">
-                      <div>
-                        <span className="text-xs text-muted-foreground">Score Ponderado</span>
-                        <p className="text-lg font-bold text-foreground">{selectedMilestone.puntuacion_final_ponderada || 0}</p>
+
+                    {/* Eje Institucional */}
+                    {selectedMilestone.eje_institucional && (
+                      <div className="bg-muted/20 p-3 rounded-lg">
+                        <p className="text-xs text-muted-foreground mb-1">Eje Institucional</p>
+                        <p className="text-sm font-medium">{selectedMilestone.eje_institucional}</p>
                       </div>
-                      <div className="text-right">
-                        <span className="text-xs text-muted-foreground">Avance Físico</span>
-                        <div className="flex items-center gap-2 justify-end">
-                          <Progress value={selectedMilestone.avance_fisico_pct || 0} className="w-24 h-2" />
-                          <span className="text-sm font-medium text-foreground">{selectedMilestone.avance_fisico_pct || 0}%</span>
+                    )}
+                    
+                    {/* KPIs Footer */}
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
+                      <div className="text-center">
+                        <span className="text-xs text-muted-foreground block mb-1">Score Ponderado</span>
+                        <p className="text-2xl font-bold text-foreground">{selectedMilestone.puntuacion_final_ponderada?.toFixed(1) || 0}</p>
+                        <Badge variant="outline" className="mt-1 text-[10px]">{selectedMilestone.prioridad?.toUpperCase()}</Badge>
+                      </div>
+                      <div className="text-center">
+                        <span className="text-xs text-muted-foreground block mb-1">Avance Físico</span>
+                        <div className="flex flex-col items-center gap-2">
+                          <p className="text-2xl font-bold text-foreground">{selectedMilestone.avance_fisico_pct || 0}%</p>
+                          <Progress value={selectedMilestone.avance_fisico_pct || 0} className="w-full h-2" />
                         </div>
                       </div>
                     </div>
                   </div>
+                  {/* Fin del contenido scrolleable */}
                 </>
               )}
             </DialogContent>

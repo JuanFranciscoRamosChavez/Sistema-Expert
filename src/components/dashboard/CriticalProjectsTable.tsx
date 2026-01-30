@@ -20,14 +20,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function CriticalProjectsTable() {
   // ✅ FILTRADO INTELIGENTE:
-  // 1. score_range: 'alta' -> Trae proyectos con prioridad Alta, Muy Alta o Crítica (puntuación >= 3).
+  // 1. score_range: 'critica,muy_alta,alta' -> Trae proyectos con prioridad Crítica, Muy Alta o Alta (puntuación >= 2.5).
   // 2. viabilidad baja o media -> Proyectos que requieren intervención.
   // 3. ordering: '-presupuesto_modificado' -> Los ordena por impacto financiero.
   // 4. page_size: 10 -> Top 10 para mejor visibilidad.
   const { data: projectsData, isLoading } = useFilteredProjects({ 
     page_size: 10, 
     ordering: '-presupuesto_modificado',
-    score_range: 'alta',
+    score_range: 'critica,muy_alta,alta',
     viabilidad: 'baja,media'
   });
 
