@@ -1,6 +1,11 @@
 from rest_framework import serializers
 from .models import Obra
-from .utils import calcular_puntuacion_ponderada, obtener_etiqueta_prioridad
+from .utils import (
+    calcular_puntuacion_ponderada, 
+    obtener_etiqueta_prioridad,
+    capitalizar_texto,
+    obtener_valor_por_defecto
+)
 
 class ObraSerializer(serializers.ModelSerializer):
     # --- CAMPOS CALCULADOS (Nuevos) ---
@@ -97,3 +102,55 @@ class ObraSerializer(serializers.ModelSerializer):
     def get_alineacion_estrategica(self, obj): return self._to_text(obj.alineacion_estrategica)
     def get_complejidad_tecnica(self, obj): return self._to_text(obj.complejidad_tecnica)
     def get_riesgo_nivel(self, obj): return self._to_text(obj.riesgo_nivel)
+
+    # --- NORMALIZACIÓN Y VALORES POR DEFECTO ---
+    
+    def to_representation(self, instance):
+        """
+        Sobrescribe la representación para aplicar capitalización y valores por defecto
+        a todos los campos de texto antes de serializarlos.
+        """
+        data = super().to_representation(instance)
+        
+        # Campos que siempre van en MAYÚSCULAS (solo dependencias/áreas)
+        campos_mayusculas = [
+            'area_responsable'
+        ]
+        
+        # Campos que deben capitalizarse normalmente
+        campos_a_capitalizar = [
+            'programa', 'eje_institucional',
+            'tipo_obra', 'tipo_recurso', 'fuente_financiamiento',
+            'alcance_territorial', 'etapa_desarrollo', 'estatus_general',
+            'responsable_operativo', 'contratista', 'alcaldias',
+            'ubicacion_especifica', 'impacto_social_desc', 'observaciones',
+            'problema_resuelve', 'solucion_ofrece', 'beneficiarios_directos',
+            'problemas_identificados', 'acciones_correctivas', 'riesgos',
+            'permisos_requeridos', 'estatus_permisos', 'multianualidad',
+            'hitos_comunicacionales', 'concentrado_programas', 'capitulo_gasto',
+            'unidad_medida'
+        ]
+        
+        # Aplicar MAYÚSCULAS a campos específicos
+        for campo in campos_mayusculas:
+            if campo in data:
+                valor_actual = data[campo]
+                valor_con_default = obtener_valor_por_defecto(campo, valor_actual)
+                if valor_con_default and isinstance(valor_con_default, str):
+                    data[campo] = valor_con_default.upper()
+                else:
+                    data[campo] = valor_con_default
+        
+        # Aplicar capitalización inteligente a otros campos
+        for campo in campos_a_capitalizar:
+            if campo in data:
+                valor_actual = data[campo]
+                # Primero obtener valor por defecto si está vacío
+                valor_con_default = obtener_valor_por_defecto(campo, valor_actual)
+                # Luego capitalizar si hay texto
+                if valor_con_default and isinstance(valor_con_default, str):
+                    data[campo] = capitalizar_texto(valor_con_default)
+                else:
+                    data[campo] = valor_con_default
+        
+        return data

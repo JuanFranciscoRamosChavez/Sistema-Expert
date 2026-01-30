@@ -9,23 +9,13 @@ import { cn } from '@/lib/utils';
 import { useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { useFilteredProjects, useProjectsByYear, useMilestoneProjects } from '@/hooks/useFilteredProjects';
 import { URGENCY_STYLES, MULTIANUAL_STYLES, BUDGET_STYLES, TIMELINE_STATUS_STYLES, getScoreStyles, STATUS_COLORS } from '@/lib/theme';
+import { formatDate } from '@/lib/formatters';
 import type { Project } from '@/types';
 
 const months = [
   'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
   'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
 ];
-
-// --- Funciones de Ayuda ---
-const formatDate = (dateStr: string | null | undefined): string => {
-	if (!dateStr) return 'Sin fecha';
-	try {
-		const date = new Date(dateStr);
-		return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
-	} catch {
-		return dateStr;
-	}
-};
 
 // --- Componente Principal ---
 
@@ -426,7 +416,7 @@ export function TimelineView() {
                             <span className="text-[10px] font-medium text-muted-foreground">{project.avance_fisico_pct}%</span>
                           </div>
                           <p className="text-[10px] text-destructive">
-                            Debía terminar: {plannedEndDate?.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            Debía terminar: {formatDate(project.fecha_termino_prog) || 'Sin fecha'}
                           </p>
                         </div>
                       </div>
@@ -582,11 +572,11 @@ export function TimelineView() {
                           <div className="text-xs text-muted-foreground space-y-1">
                             <div className="flex justify-between">
                               <span>Inicio:</span>
-                              <span className="font-medium">{start.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</span>
+                              <span className="font-medium">{formatDate(start.toISOString()) || 'N/A'}</span>
                             </div>
                             <div className="flex justify-between">
                               <span>Fin:</span>
-                              <span className="font-medium">{end.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</span>
+                              <span className="font-medium">{formatDate(end.toISOString()) || 'N/A'}</span>
                             </div>
                           </div>
                         )}

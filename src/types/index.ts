@@ -81,6 +81,7 @@ export interface APIProject {
   ubicacion_especifica?: string;
   alcaldias?: string;
   multianualidad?: string;
+  contratista?: string;
 }
 
 // --- TIPOS DE UI (Frontend Models) ---
@@ -139,6 +140,10 @@ export interface Project {
   problema_resuelve?: string;
   alcaldias?: string;
   multianualidad?: string; // "SI" o "NO"
+  tipo_obra?: string;
+  tipo_recurso?: string;
+  fuente_financiamiento?: string;
+  contratista?: string;
 }
 
 // --- TIPOS DE DASHBOARD (KPIs V2) ---

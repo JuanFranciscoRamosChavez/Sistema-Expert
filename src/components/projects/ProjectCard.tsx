@@ -7,7 +7,7 @@ import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { ProjectDetail } from './ProjectDetail';
 import { APP_COLORS, STATUS_COLORS } from '@/lib/theme';
 import { H3, Small } from '@/components/ui/typography';
-import { analyzeTerritorialCoverage } from '@/lib/formatters';
+import { analyzeTerritorialCoverage, formatDate } from '@/lib/formatters';
 
 // ✅ CONSTANTES FUERA DEL RENDER
 const STATUS_LABELS: Record<string, string> = {
@@ -21,11 +21,6 @@ const STATUS_LABELS: Record<string, string> = {
 // Helper de formato (idealmente mover a src/lib/formatters.ts)
 const formatCurrency = (amount: number) => 
   new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(amount);
-
-const formatDate = (dateString: string) => {
-  if (!dateString) return 'Sin fecha';
-  return new Date(dateString).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
-};
 
 interface ProjectCardProps {
   project: Project;

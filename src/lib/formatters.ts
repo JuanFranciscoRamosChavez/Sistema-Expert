@@ -368,3 +368,51 @@ export const formatCompactCurrency = (value: number): string => {
 	
 	return `$${num.toFixed(0)}`;
 };
+
+/**
+ * Formatea una fecha en formato dd/mm/yyyy
+ * @param date - Fecha como string ISO (YYYY-MM-DD), Date object, o timestamp
+ * @returns Fecha formateada como dd/mm/yyyy, o cadena vacía si la fecha es inválida
+ */
+export const formatDate = (date: string | Date | null | undefined): string => {
+	if (!date) return '';
+	
+	try {
+		const dateObj = typeof date === 'string' ? new Date(date) : date;
+		
+		// Verificar si es una fecha válida
+		if (isNaN(dateObj.getTime())) return '';
+		
+		const day = dateObj.getDate().toString().padStart(2, '0');
+		const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+		const year = dateObj.getFullYear();
+		
+		return `${day}/${month}/${year}`;
+	} catch {
+		return '';
+	}
+};
+
+/**
+ * Formatea una fecha en formato largo legible (ej: "15 de enero de 2026")
+ * @param date - Fecha como string ISO (YYYY-MM-DD), Date object, o timestamp
+ * @returns Fecha formateada en español, o cadena vacía si la fecha es inválida
+ */
+export const formatDateLong = (date: string | Date | null | undefined): string => {
+	if (!date) return '';
+	
+	try {
+		const dateObj = typeof date === 'string' ? new Date(date) : date;
+		
+		// Verificar si es una fecha válida
+		if (isNaN(dateObj.getTime())) return '';
+		
+		return dateObj.toLocaleDateString('es-MX', {
+			day: 'numeric',
+			month: 'long',
+			year: 'numeric'
+		});
+	} catch {
+		return '';
+	}
+};

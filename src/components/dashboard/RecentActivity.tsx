@@ -18,6 +18,7 @@ import {
 import { useRecentActivity } from "@/hooks/useRecentActivity";
 import { STATUS_COLORS, APP_COLORS } from "@/lib/theme"; // ✅ Import obligatorio del tema
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatDate } from "@/lib/formatters";
 
 // --- CONFIGURACIÓN VISUAL (Estática y fuera del componente) ---
 
@@ -155,7 +156,7 @@ function formatTimeAgo(dateString: string): string {
   if (diffInSeconds < 86400) return `Hace ${Math.floor(diffInSeconds / 3600)} h`;
   if (diffInSeconds < 604800) return `Hace ${Math.floor(diffInSeconds / 86400)} d`;
   
-  return date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+  return formatDate(date.toISOString()) || 'Sin fecha';
 }
 
 // --- COMPONENTES AUXILIARES ---

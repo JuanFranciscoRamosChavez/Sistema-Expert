@@ -26,7 +26,7 @@ import { Separator } from '@/components/ui/separator';
 import { Project } from '@/types';
 import { APP_COLORS, STATUS_COLORS } from '@/lib/theme';
 import { H3, P, Small, Subtitle } from '@/components/ui/typography';
-import { analyzeTerritorialCoverage } from '@/lib/formatters';
+import { analyzeTerritorialCoverage, formatDate } from '@/lib/formatters';
 
 interface ProjectDetailProps {
 	project: Project;
@@ -82,37 +82,39 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
 						{/* Alcaldías */}
 						<div className="bg-muted/30 rounded-lg border border-border/50 overflow-hidden">
 							{/* Header con botón toggle */}
-							<button
-								onClick={() => setIsAlcaldiasExpanded(!isAlcaldiasExpanded)}
-								className="w-full flex items-center justify-between p-2.5 sm:p-3 hover:bg-muted/50 transition-colors active:bg-muted/70"
-							>
-								<div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-									<Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-primary" />
-									<span className="text-xs sm:text-sm font-semibold text-foreground uppercase tracking-wide truncate">
-										Alcaldía(s)
-									</span>
-									<Badge variant="secondary" className="text-[9px] sm:text-[10px] shrink-0">
-										{territorial.display}
-									</Badge>
-								</div>
-								{territorial.type !== 'unknown' && Object.keys(territorial.grouped || {}).length > 0 && (
-									<div className="flex items-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs text-muted-foreground shrink-0">
-										<span className="hidden sm:inline">
-											{isAlcaldiasExpanded ? 'Ocultar' : 'Ver detalles'}
+							<div className={isAlcaldiasExpanded && territorial.type !== 'unknown' && Object.keys(territorial.grouped || {}).length > 0 ? '' : 'pb-0'}>
+								<button
+									onClick={() => setIsAlcaldiasExpanded(!isAlcaldiasExpanded)}
+									className="w-full flex items-center justify-between px-3 pt-3 pb-3 hover:bg-muted/50 transition-colors active:bg-muted/70"
+								>
+									<div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+										<Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 text-primary" />
+										<span className="text-xs sm:text-sm font-semibold text-foreground uppercase tracking-wide truncate">
+											Alcaldía(s)
 										</span>
-										{isAlcaldiasExpanded ? (
-											<ChevronUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-										) : (
-											<ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-										)}
+										<Badge variant="secondary" className="text-[9px] sm:text-[10px] shrink-0">
+											{territorial.display}
+										</Badge>
 									</div>
-								)}
-							</button>
+									{territorial.type !== 'unknown' && Object.keys(territorial.grouped || {}).length > 0 && (
+										<div className="flex items-center gap-0.5 sm:gap-1 text-[10px] sm:text-xs text-muted-foreground shrink-0">
+											<span className="hidden sm:inline">
+												{isAlcaldiasExpanded ? 'Ocultar' : 'Ver detalles'}
+											</span>
+											{isAlcaldiasExpanded ? (
+												<ChevronUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+											) : (
+												<ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+											)}
+										</div>
+									)}
+								</button>
+							</div>
 							
 							{/* Contenido colapsable */}
 							{isAlcaldiasExpanded && territorial.type !== 'unknown' && territorial.grouped && Object.keys(territorial.grouped).length > 0 && (
-								<div className="px-2.5 sm:px-3 pb-2.5 sm:pb-3 pt-0 border-t border-border/50">
-									<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3 mt-2.5 sm:mt-3">
+								<div className="px-3 pb-3 border-t border-border/50">
+									<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3 mt-3">
 										{Object.entries(territorial.grouped).map(([zone, alcaldias]) => (
 											<div key={zone} className="space-y-1.5 sm:space-y-2">
 												<span className="text-[9px] sm:text-[10px] md:text-xs font-bold text-primary uppercase tracking-wider block">
@@ -134,7 +136,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
 						
 						{/* Ubicación Específica */}
 						{project.ubicacion_especifica && (
-							<div className="bg-muted/30 rounded-lg p-2.5 sm:p-3 border border-border/50">
+							<div className="bg-muted/30 rounded-lg p-3 border border-border/50">
 								<div className="flex items-start gap-1.5 sm:gap-2">
 									<MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 mt-0.5 shrink-0 text-primary" />
 									<div className="flex-1 min-w-0">
@@ -193,6 +195,45 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
 						</div>
 					</div>
 
+					{/* 1.5. INFORMACIÓN DEL PROYECTO */}
+					<div className="space-y-3">
+						<H3 className="text-sm md:text-base flex items-center gap-2">
+							<Building2 className="h-4 w-4 text-primary" />
+							Información del Proyecto
+						</H3>
+						<div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+							{/* Tipo de Obra */}
+							<div className="bg-muted/30 p-3 sm:p-4 rounded-lg border border-border">
+								<Small className="block mb-1.5 sm:mb-2 opacity-70 text-xs font-semibold uppercase tracking-wider">
+									Tipo de Obra
+								</Small>
+								<span className="text-xs sm:text-sm text-foreground font-medium leading-snug block">
+									{project.tipo_obra || 'No especificado'}
+								</span>
+							</div>
+
+							{/* Tipo de Recurso */}
+							<div className="bg-muted/30 p-3 sm:p-4 rounded-lg border border-border">
+								<Small className="block mb-1.5 sm:mb-2 opacity-70 text-xs font-semibold uppercase tracking-wider">
+									Tipo de Recurso
+								</Small>
+								<span className="text-xs sm:text-sm text-foreground font-medium leading-snug block">
+									{project.tipo_recurso || 'No especificado'}
+								</span>
+							</div>
+
+							{/* Fuente de Financiamiento */}
+							<div className="bg-muted/30 p-3 sm:p-4 rounded-lg border border-border">
+								<Small className="block mb-1.5 sm:mb-2 opacity-70 text-xs font-semibold uppercase tracking-wider">
+									Fuente de Financiamiento
+								</Small>
+								<span className="text-xs sm:text-sm text-foreground font-medium leading-snug block">
+									{project.fuente_financiamiento || 'No especificado'}
+								</span>
+							</div>
+						</div>
+					</div>
+
 					{/* 2. DATOS FINANCIEROS Y CRONOGRAMA */}
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 						
@@ -247,13 +288,13 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
 									<div className="bg-muted/50 p-2.5 rounded border border-border/50">
 										<span className="block text-muted-foreground mb-1">Fecha Inicio</span>
 										<span className="font-medium text-foreground">
-											{new Date(project.fechaInicio).toLocaleDateString('es-MX')}
+											{formatDate(project.fechaInicio) || 'No definida'}
 										</span>
 									</div>
 									<div className="bg-muted/50 p-2.5 rounded border border-border/50">
 										<span className="block text-muted-foreground mb-1">Fecha Término</span>
 										<span className="font-medium text-foreground">
-											{new Date(project.fechaFin).toLocaleDateString('es-MX')}
+											{formatDate(project.fechaFin) || 'No definida'}
 										</span>
 									</div>
 								</div>
@@ -277,6 +318,11 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
 										{project.responsable || "No asignado"}
 									</p>
 									<p className="text-[10px] sm:text-xs text-muted-foreground truncate">Coordinador de Obra</p>
+									{project.contratista && (
+										<p className="text-[10px] sm:text-xs text-primary/80 truncate font-medium mt-1" title={project.contratista}>
+											 <span className="text-muted-foreground">Contratista:</span> {project.contratista}
+										</p>
+									)}
 								</div>
 							</div>
 						</div>

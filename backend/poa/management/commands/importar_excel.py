@@ -5,7 +5,9 @@ from poa.utils import (
 	clean_percentage, 
 	interpretar_escala_flexible, 
 	clean_beneficiarios_advanced,
-	calcular_puntuacion_ponderada
+	calcular_puntuacion_ponderada,
+	capitalizar_texto,
+	obtener_valor_por_defecto
 )
 import pandas as pd
 import os
@@ -48,7 +50,30 @@ class Command(BaseCommand):
 		obras_batch = []
 		
 		def safe_str(val):
-			return str(val).strip() if pd.notna(val) else None
+			"""Retorna el string limpio o None si está vacío"""
+			if pd.isna(val) or val == '':
+				return None
+			return str(val).strip()
+		
+		def safe_str_with_default(val, campo_nombre):
+			"""Retorna string limpio, capitalizado y con valor por defecto si está vacío"""
+			texto = safe_str(val)
+			# Obtener valor por defecto si está vacío
+			texto_con_default = obtener_valor_por_defecto(campo_nombre, texto)
+			# Capitalizar si hay texto
+			if texto_con_default and isinstance(texto_con_default, str):
+				return capitalizar_texto(texto_con_default)
+			return texto_con_default
+		
+		def safe_str_uppercase(val, campo_nombre):
+			"""Retorna string limpio, en MAYÚSCULAS y con valor por defecto si está vacío"""
+			texto = safe_str(val)
+			# Obtener valor por defecto si está vacío
+			texto_con_default = obtener_valor_por_defecto(campo_nombre, texto)
+			# Convertir a mayúsculas si hay texto
+			if texto_con_default and isinstance(texto_con_default, str):
+				return texto_con_default.upper()
+			return texto_con_default
 
 		def clean_semaphore(val):
 			"""
@@ -74,16 +99,15 @@ class Command(BaseCommand):
 
 		def parse_date(val):
 			"""
-			Normaliza fechas al formato ISO 8601 (YYYY-MM-DD).
-			Soporta múltiples formatos de entrada y devuelve date object.
+			Normaliza fechas al formato ISO 8601 (YYYY-MM-DD) con lógica inteligente.
 			
-			Formatos soportados:
-			- Seriales de Excel (int/float)
-			- "abril 2026", "mayo 2026" (mes y año en español)
-			- "28 de noviembre de 2025" (fecha completa en español)
-			- "31/12/2025", "31-12-2025" (DD/MM/YYYY o DD-MM-YYYY)
-			- "2025-12-31", "2025/12/31" (ISO 8601 y variantes)
-			- Timestamps y datetime objects de pandas
+			Estrategia de parsing:
+			1. Detecta seriales de Excel
+			2. Busca año (4 dígitos o 2 dígitos)
+			3. Busca mes (1-12 o nombres en español/inglés)
+			4. Busca día (1-31, o usa 01 si no encuentra)
+			5. Intenta formatos comunes: DD/MM/YYYY, YYYY-MM-DD, etc.
+			6. Si falla, prueba orden inverso: YYYY/MM/DD
 			
 			Returns:
 				date object o None si no se puede parsear
@@ -103,65 +127,129 @@ class Command(BaseCommand):
 					return val.date()
 				
 				# 3. Convertir a string para análisis de texto
-				val_str = str(val).strip()
-				
-				# 4. Meses en español (diccionario)
-				meses = {
-					'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4,
-					'mayo': 5, 'junio': 6, 'julio': 7, 'agosto': 8,
-					'septiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12
-				}
+				val_str = str(val).strip().lower()
 				
 				import re
 				
-				# 5. Formato: "abril 2026", "mayo 2026" (solo mes y año en español)
-				match_mes_anio = re.match(
-					r'(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(\d{4})', 
-					val_str, 
-					re.IGNORECASE
-				)
-				if match_mes_anio:
-					mes_nombre = match_mes_anio.group(1).lower()
-					anio = int(match_mes_anio.group(2))
-					mes = meses[mes_nombre]
-					return datetime(anio, mes, 1).date()  # Día 1 del mes
+				# 4. Diccionario de meses (español e inglés)
+				meses = {
+					'enero': 1, 'ene': 1, 'january': 1, 'jan': 1,
+					'febrero': 2, 'feb': 2, 'february': 2,
+					'marzo': 3, 'mar': 3, 'march': 3,
+					'abril': 4, 'abr': 4, 'april': 4, 'apr': 4,
+					'mayo': 5, 'may': 5,
+					'junio': 6, 'jun': 6, 'june': 6,
+					'julio': 7, 'jul': 7, 'july': 7,
+					'agosto': 8, 'ago': 8, 'august': 8, 'aug': 8,
+					'septiembre': 9, 'sep': 9, 'september': 9, 'sept': 9,
+					'octubre': 10, 'oct': 10, 'october': 10,
+					'noviembre': 11, 'nov': 11, 'november': 11,
+					'diciembre': 12, 'dic': 12, 'december': 12, 'dec': 12
+				}
 				
-				# 6. Formato: "28 de noviembre de 2025" (fecha completa en español)
-				match_completo = re.match(
-					r'(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+de\s+(\d{4})', 
-					val_str, 
-					re.IGNORECASE
-				)
-				if match_completo:
-					dia = int(match_completo.group(1))
-					mes_nombre = match_completo.group(2).lower()
-					anio = int(match_completo.group(3))
-					mes = meses[mes_nombre]
-					return datetime(anio, mes, dia).date()
+				# 5. ESTRATEGIA 1: Buscar patrón "mes año" (ej: "abril 2026", "mayo 2026")
+				for mes_nombre, mes_num in meses.items():
+					# Patrón: nombre_mes espacio año(4 dígitos o 2 dígitos)
+					match = re.search(rf'\b{mes_nombre}\b\s+(\d{{2,4}})', val_str)
+					if match:
+						anio_str = match.group(1)
+						anio = int(anio_str)
+						# Convertir año de 2 dígitos a 4 dígitos
+						if anio < 100:
+							anio = 2000 + anio if anio < 50 else 1900 + anio
+						return datetime(anio, mes_num, 1).date()
 				
-				# 7. Formato ISO ya normalizado: "2025-12-31"
-				if re.match(r'^\d{4}-\d{2}-\d{2}$', val_str):
-					return datetime.strptime(val_str, "%Y-%m-%d").date()
+				# 6. ESTRATEGIA 2: Buscar patrón "día mes año" (ej: "28 de noviembre de 2025")
+				for mes_nombre, mes_num in meses.items():
+					match = re.search(rf'(\d{{1,2}})\s+(?:de\s+)?{mes_nombre}\b\s+(?:de\s+)?(\d{{2,4}})', val_str)
+					if match:
+						dia = int(match.group(1))
+						anio_str = match.group(2)
+						anio = int(anio_str)
+						if anio < 100:
+							anio = 2000 + anio if anio < 50 else 1900 + anio
+						# Validar día
+						if 1 <= dia <= 31:
+							try:
+								return datetime(anio, mes_num, dia).date()
+							except ValueError:
+								# Día inválido para ese mes, usar día 1
+								return datetime(anio, mes_num, 1).date()
 				
-				# 8. Formatos DD/MM/YYYY o DD-MM-YYYY
-				for sep in ['/', '-']:
-					pattern = rf'^\d{{1,2}}\{sep}\d{{1,2}}\{sep}\d{{4}}$'
-					if re.match(pattern, val_str):
+				# 7. ESTRATEGIA 3: Detectar números y separadores (/, -, .)
+				# Extraer todos los números del string
+				numeros = re.findall(r'\d+', val_str)
+				
+				if len(numeros) >= 2:
+					# Convertir a enteros
+					nums = [int(n) for n in numeros]
+					
+					# Identificar qué número es qué
+					dia, mes, anio = None, None, None
+					
+					# Buscar año (4 dígitos o 2 dígitos > 31)
+					for i, n in enumerate(nums):
+						if n > 31:  # Probablemente es un año
+							anio = n
+							if anio < 100:
+								anio = 2000 + anio if anio < 50 else 1900 + anio
+							nums[i] = None  # Marcar como usado
+							break
+					
+					# Filtrar números usados
+					nums_restantes = [n for n in nums if n is not None]
+					
+					if len(nums_restantes) >= 1:
+						# Buscar mes (1-12)
+						for i, n in enumerate(nums_restantes):
+							if 1 <= n <= 12:
+								mes = n
+								nums_restantes[i] = None
+								break
+						
+						# Filtrar nuevamente
+						nums_restantes = [n for n in nums_restantes if n is not None]
+						
+						# El número restante es el día (o None)
+						if len(nums_restantes) > 0:
+							dia = nums_restantes[0] if 1 <= nums_restantes[0] <= 31 else 1
+						else:
+							dia = 1  # Día por defecto
+					
+					# Si tenemos mes y año, construir fecha
+					if mes and anio:
+						dia = dia or 1
 						try:
-							return datetime.strptime(val_str, f"%d{sep}%m{sep}%Y").date()
+							return datetime(anio, mes, dia).date()
 						except ValueError:
-							pass
+							# Si el día es inválido, usar día 1
+							return datetime(anio, mes, 1).date()
 				
-				# 9. Formatos YYYY/MM/DD o YYYY-MM-DD (variantes)
-				for sep in ['/', '-']:
-					pattern = rf'^\d{{4}}\{sep}\d{{1,2}}\{sep}\d{{1,2}}$'
-					if re.match(pattern, val_str):
+				# 8. ESTRATEGIA 4: Formatos estándar con separadores
+				# ISO: YYYY-MM-DD o YYYY/MM/DD
+				if re.match(r'^\d{4}[-/]\d{1,2}[-/]\d{1,2}$', val_str):
+					for fmt in ["%Y-%m-%d", "%Y/%m/%d"]:
 						try:
-							return datetime.strptime(val_str, f"%Y{sep}%m{sep}%d").date()
+							return datetime.strptime(val_str, fmt).date()
 						except ValueError:
-							pass
+							continue
 				
-				# 10. Fallback: intentar parsing automático de pandas
+				# Europeo/Latino: DD/MM/YYYY o DD-MM-YYYY
+				if re.match(r'^\d{1,2}[-/]\d{1,2}[-/]\d{4}$', val_str):
+					for fmt in ["%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y"]:
+						try:
+							return datetime.strptime(val_str, fmt).date()
+						except ValueError:
+							continue
+				
+				# Americano: MM/DD/YYYY
+				if re.match(r'^\d{1,2}[-/]\d{1,2}[-/]\d{4}$', val_str):
+					try:
+						return datetime.strptime(val_str, "%m/%d/%Y").date()
+					except ValueError:
+						pass
+				
+				# 9. ESTRATEGIA 5: Fallback con pandas
 				parsed = pd.to_datetime(val, errors='coerce')
 				if pd.notna(parsed):
 					return parsed.date()
@@ -194,30 +282,30 @@ class Command(BaseCommand):
 				obra = Obra(
 					# Identificación
 					id_excel=row[0],
-					programa=safe_str(row[1]),
-					area_responsable=safe_str(row[2]),
-					eje_institucional=safe_str(row[3]),
+					programa=safe_str_with_default(row[1], 'programa'),
+					area_responsable=safe_str_uppercase(row[2], 'area_responsable'),
+					eje_institucional=safe_str_with_default(row[3], 'eje_institucional'),
 					
 					# Presupuesto (VALORES EN MDP - Millones De Pesos)
-					tipo_recurso=safe_str(row[4]),
-					concentrado_programas=safe_str(row[5]),
-					capitulo_gasto=safe_str(row[6]),
+					tipo_recurso=safe_str_with_default(row[4], 'tipo_recurso'),
+					concentrado_programas=safe_str_with_default(row[5], 'concentrado_programas'),
+					capitulo_gasto=safe_str_with_default(row[6], 'capitulo_gasto'),
 					presupuesto_modificado=clean_money(row[7], es_mdp=True),  # En MDP
 					anteproyecto_total=clean_money(row[8], es_mdp=True),      # En MDP
 					meta_2025=clean_money(row[9], es_mdp=False),              # Cantidad de metas (no dinero)
 					meta_2026=clean_money(row[10], es_mdp=False),             # Cantidad de metas (no dinero)
-					unidad_medida=safe_str(row[11]),
+					unidad_medida=safe_str_with_default(row[11], 'unidad_medida'),
 					costo_unitario=clean_money(row[12], es_mdp=False),        # Costo unitario (no MDP)
 					proyecto_presupuesto=clean_money(row[13], es_mdp=False),  # Verificar si este debe ser MDP
-					multianualidad=safe_str(row[14]),
+					multianualidad=safe_str_with_default(row[14], 'multianualidad'),
 
 					# Categorización
-					tipo_obra=safe_str(row[15]),
-					alcance_territorial=safe_str(row[16]),
-					fuente_financiamiento=safe_str(row[17]),
-					etapa_desarrollo=safe_str(row[18]),
+					tipo_obra=safe_str_with_default(row[15], 'tipo_obra'),
+					alcance_territorial=safe_str_with_default(row[16], 'alcance_territorial'),
+					fuente_financiamiento=safe_str_with_default(row[17], 'fuente_financiamiento'),
+					etapa_desarrollo=safe_str_with_default(row[18], 'etapa_desarrollo'),
 					complejidad_tecnica=interpretar_escala_flexible(row[19]),
-					impacto_social_desc=safe_str(row[20]),
+					impacto_social_desc=safe_str_with_default(row[20], 'impacto_social_desc'),
 
 					# Priorización (usando valores ya interpretados)
 					alineacion_estrategica=alineacion,
@@ -237,9 +325,9 @@ class Command(BaseCommand):
 					viabilidad_administrativa_semaforo=clean_semaphore(row[33]),
 
 					# Ubicación y Beneficiarios
-					alcaldias=safe_str(row[34]),
-					ubicacion_especifica=safe_str(row[35]),
-					beneficiarios_directos=safe_str(row[36]),
+					alcaldias=safe_str_with_default(row[34], 'alcaldias'),
+					ubicacion_especifica=safe_str_with_default(row[35], 'ubicacion_especifica'),
+					beneficiarios_directos=safe_str_with_default(row[36], 'beneficiarios_directos'),
 					beneficiarios_num=clean_beneficiarios_advanced(row[36]),
 					poblacion_objetivo_num=safe_str(row[37]),
 
@@ -253,26 +341,26 @@ class Command(BaseCommand):
 					# Estatus y Textos
 					avance_fisico_pct=clean_percentage(row[43]),
 					avance_financiero_pct=clean_percentage(row[44]),
-					estatus_general=safe_str(row[45]),
-					permisos_requeridos=safe_str(row[46]),
-					estatus_permisos=safe_str(row[47]),
+					estatus_general=safe_str_with_default(row[45], 'estatus_general'),
+					permisos_requeridos=safe_str_with_default(row[46], 'permisos_requeridos'),
+					estatus_permisos=safe_str_with_default(row[47], 'estatus_permisos'),
 					requisitos_especificos=safe_str(row[48]),
-					responsable_operativo=safe_str(row[49]),
-					contratista=safe_str(row[50]),
-					observaciones=safe_str(row[51]),
-					problemas_identificados=safe_str(row[52]),
-					acciones_correctivas=safe_str(row[53]),
+					responsable_operativo=safe_str_with_default(row[49], 'responsable_operativo'),
+					contratista=safe_str_with_default(row[50], 'contratista'),
+					observaciones=safe_str_with_default(row[51], 'observaciones'),
+					problemas_identificados=safe_str_with_default(row[52], 'problemas_identificados'),
+					acciones_correctivas=safe_str_with_default(row[53], 'acciones_correctivas'),
 					ultima_actualizacion=parse_date(row[54]),
 					
 					# Narrativa
-					problema_resuelve=safe_str(row[55]),
-					solucion_ofrece=safe_str(row[56]),
+					problema_resuelve=safe_str_with_default(row[55], 'problema_resuelve'),
+					solucion_ofrece=safe_str_with_default(row[56], 'solucion_ofrece'),
 					beneficio_ciudadania=safe_str(row[57]),
 					dato_destacable=safe_str(row[58]),
 					alineacion_gobierno=safe_str(row[59]),
 					poblacion_perfil=safe_str(row[60]),
 					relevancia_comunicacional=safe_str(row[61]),
-					hitos_comunicacionales=safe_str(row[62]),
+					hitos_comunicacionales=safe_str_with_default(row[62], 'hitos_comunicacionales'),
 					mensajes_clave=safe_str(row[63]),
 					estrategia_comunicacion=safe_str(row[64]),
 					control_captura=safe_str(row[65]),

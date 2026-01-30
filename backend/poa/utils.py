@@ -411,3 +411,135 @@ def normalizar_texto(texto):
 	# texto_sin_acentos = texto_sin_acentos.replace('ñ', 'n')
 	
 	return texto_sin_acentos
+
+
+def capitalizar_texto(texto, siglas=None):
+	"""
+	Capitaliza texto de forma inteligente para presentación en UI.
+	- Primera letra de cada palabra en mayúscula
+	- Mantiene siglas conocidas en mayúsculas
+	- Maneja preposiciones y artículos correctamente
+	
+	Args:
+		texto: Texto a capitalizar
+		siglas: Set de siglas a mantener en mayúsculas (opcional)
+	
+	Ejemplos:
+		"CDMX" -> "CDMX"
+		"CALLE 1" -> "Calle 1"
+		"libertad" -> "Libertad"
+		"av. insurgentes sur" -> "Av. Insurgentes Sur"
+		"sistema de agua potable" -> "Sistema de Agua Potable"
+	"""
+	if not texto or texto == '':
+		return None
+	
+	# Convertir a string y limpiar espacios extras
+	text = str(texto).strip()
+	
+	if not text:
+		return None
+	
+	# Lista de siglas comunes que deben mantenerse en mayúsculas
+	if siglas is None:
+		siglas = {
+			'CDMX', 'MX', 'USA', 'EU', 'CFE', 'IMSS', 'ISSSTE', 
+			'UNAM', 'IPN', 'UAM', 'SEP', 'INEGI', 'SAT',
+			'CDMX', 'BRT', 'POA', 'ODS', 'ONU'
+		}
+	
+	# Lista de palabras que van en minúsculas (preposiciones, artículos, conjunciones)
+	minusculas = {
+		'de', 'del', 'la', 'las', 'el', 'los', 'un', 'una', 
+		'unos', 'unas', 'y', 'e', 'o', 'u', 'en', 'a', 'con', 
+		'por', 'para', 'sin', 'sobre', 'bajo', 'entre', 'hacia'
+	}
+	
+	# Dividir en palabras
+	words = text.split()
+	capitalized_words = []
+	
+	for i, word in enumerate(words):
+		# Limpiar puntuación al inicio/final para análisis
+		clean_word = word.strip('.,;:()[]{}')
+		
+		# Caso 1: Si es una sigla conocida, mantenerla
+		if clean_word.upper() in siglas:
+			capitalized_words.append(word.upper())
+		# Caso 2: Si es la primera palabra, siempre capitalizar
+		elif i == 0:
+			capitalized_words.append(word.capitalize())
+		# Caso 3: Si es preposición/artículo, dejar en minúsculas
+		elif clean_word.lower() in minusculas:
+			capitalized_words.append(word.lower())
+		# Caso 4: Palabra normal, capitalizar
+		else:
+			capitalized_words.append(word.capitalize())
+	
+	return ' '.join(capitalized_words)
+
+
+def obtener_valor_por_defecto(campo_nombre, valor_actual):
+	"""
+	Retorna un valor por defecto apropiado según el tipo de campo.
+	
+	Args:
+		campo_nombre: Nombre del campo
+		valor_actual: Valor actual del campo
+		
+	Returns:
+		Valor por defecto apropiado o el valor actual si existe
+	"""
+	if valor_actual and str(valor_actual).strip():
+		return valor_actual
+	
+	# Mapeo de campos a valores por defecto contextuales
+	defaults = {
+		# Identificación y categorización
+		'programa': 'Por Definir',
+		'area_responsable': 'Por Asignar',
+		'eje_institucional': 'Por Clasificar',
+		'tipo_obra': 'Por Clasificar',
+		'tipo_recurso': 'Por Definir',
+		'fuente_financiamiento': 'Por Definir',
+		'alcance_territorial': 'Por Determinar',
+		'etapa_desarrollo': 'Por Determinar',
+		'estatus_general': 'Por Revisar',
+		
+		# Responsables y ejecución
+		'responsable_operativo': 'Por Asignar',
+		'contratista': 'Por Contratar',
+		
+		# Ubicación
+		'alcaldias': 'Por Determinar',
+		'ubicacion_especifica': 'Por Definir',
+		
+		# Descripciones y observaciones
+		'impacto_social_desc': 'Sin Descripción',
+		'observaciones': 'Sin Observaciones',
+		'problema_resuelve': 'Por Documentar',
+		'solucion_ofrece': 'Por Documentar',
+		'beneficiarios_directos': 'Por Identificar',
+		
+		# Riesgos y gestión
+		'problemas_identificados': 'Sin Problemas Identificados',
+		'acciones_correctivas': 'Sin Acciones Definidas',
+		'riesgos': 'Sin Riesgos Identificados',
+		'permisos_requeridos': 'Por Revisar',
+		'estatus_permisos': 'Por Revisar',
+		
+		# Fechas y plazos (estos se manejan como None típicamente)
+		'fecha_inicio_prog': None,
+		'fecha_termino_prog': None,
+		'fecha_inicio_real': None,
+		'fecha_termino_real': None,
+		
+		# Valores numéricos (estos ya tienen defaults en el modelo)
+		'duracion_meses': None,
+		'multianualidad': 'Por Definir',
+		
+		# Comunicación
+		'hitos_comunicacionales': 'Sin Hitos Definidos',
+	}
+	
+	return defaults.get(campo_nombre, 'Por Definir')

@@ -57,6 +57,10 @@ export function mapApiToUiProject(api: APIProject): Project {
     accionesCorrectivas: api.acciones_correctivas,
     hitos_comunicacionales: api.hitos_comunicacionales,
     objetivo: api.problema_resuelve || api.solucion_ofrece,
+    tipo_obra: api.tipo_obra,
+    tipo_recurso: api.tipo_recurso,
+    fuente_financiamiento: api.fuente_financiamiento,
+    contratista: api.contratista,
 
     // --- CAMPOS DE NEGOCIO (Delegados al Backend) ---
     

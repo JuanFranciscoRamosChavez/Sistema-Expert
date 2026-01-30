@@ -151,7 +151,7 @@ export function ReportsView() {
               </div>
               <div>
                 <span className="text-muted-foreground">Fecha de corte:</span>
-                <p className="font-semibold">{new Date().toLocaleDateString('es-MX')}</p>
+                <p className="font-semibold">{formatDate(new Date().toISOString()) || 'N/A'}</p>
               </div>
             </div>
           </div>
