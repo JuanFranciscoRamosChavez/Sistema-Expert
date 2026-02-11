@@ -7,7 +7,7 @@ import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { ProjectDetail } from './ProjectDetail';
 import { APP_COLORS, STATUS_COLORS } from '@/lib/theme';
 import { H3, Small } from '@/components/ui/typography';
-import { analyzeTerritorialCoverage, formatDate } from '@/lib/formatters';
+import { analyzeTerritorialCoverage, formatDate, formatCurrency, formatPercentage } from '@/lib/formatters';
 
 // ✅ CONSTANTES FUERA DEL RENDER
 const STATUS_LABELS: Record<string, string> = {
@@ -17,10 +17,6 @@ const STATUS_LABELS: Record<string, string> = {
   en_riesgo: 'En Riesgo',
   retrasado: 'Retrasado',
 };
-
-// Helper de formato (idealmente mover a src/lib/formatters.ts)
-const formatCurrency = (amount: number) => 
-  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(amount);
 
 interface ProjectCardProps {
   project: Project;
@@ -95,7 +91,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Avance Físico</span>
-                  <span className="font-bold">{project.avance.toFixed(1)}%</span>
+                  <span className="font-bold">{formatPercentage(project.avance, 1)}</span>
                 </div>
                 <Progress 
                   value={project.avance} 

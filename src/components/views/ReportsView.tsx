@@ -1,6 +1,7 @@
 import { mockProjects, direcciones, formatCurrency, formatNumber } from '@/lib/mockData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { H1, H2, P } from '@/components/ui/typography';
 import { 
   Select, 
   SelectContent, 
@@ -61,12 +62,12 @@ export function ReportsView() {
     <div className="space-y-6">
       {/* Header */}
       <div className="animate-fade-in">
-        <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
+        <H1>
           Centro de Reportes
-        </h1>
-        <p className="text-muted-foreground mt-1">
+        </H1>
+        <P className="text-muted-foreground mt-1">
           Genera y descarga reportes ejecutivos automáticos
-        </p>
+        </P>
       </div>
 
       {/* Quick Generate */}

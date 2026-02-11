@@ -9,7 +9,8 @@ import { cn } from '@/lib/utils';
 import { useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { useFilteredProjects, useProjectsByYear, useMilestoneProjects } from '@/hooks/useFilteredProjects';
 import { URGENCY_STYLES, MULTIANUAL_STYLES, BUDGET_STYLES, TIMELINE_STATUS_STYLES, getScoreStyles, STATUS_COLORS } from '@/lib/theme';
-import { formatDate } from '@/lib/formatters';
+import { formatDate, formatNumber, formatCurrency } from '@/lib/formatters';
+import { H1, P } from '@/components/ui/typography';
 import type { Project } from '@/types';
 
 const months = [
@@ -165,12 +166,12 @@ export function TimelineView() {
   return (
     <div className="space-y-6">
       <div className="animate-fade-in">
-        <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
+        <H1>
           Cronograma de Proyectos
-        </h1>
-        <p className="text-muted-foreground mt-1">
+        </H1>
+        <P className="text-muted-foreground mt-1">
           Línea de tiempo y entregas programadas
-        </p>
+        </P>
 		</div>
 
 		{!loading && (
@@ -819,7 +820,7 @@ export function TimelineView() {
                         <p className="text-[10px] text-muted-foreground uppercase font-medium mb-1">Beneficiarios</p>
                         <p className="text-xs md:text-sm font-semibold">
                           {selectedMilestone.beneficiarios 
-                            ? selectedMilestone.beneficiarios.toLocaleString('es-MX') 
+                            ? formatNumber(selectedMilestone.beneficiarios) 
                             : 'No especificados'}
                         </p>
                       </div>
@@ -832,13 +833,13 @@ export function TimelineView() {
                         <div>
                           <p className={cn("text-xs", BUDGET_STYLES.textMuted)}>Total</p>
                           <p className={cn("text-base md:text-lg font-bold truncate", BUDGET_STYLES.text)}>
-                            ${(selectedMilestone.presupuesto || 0).toLocaleString('es-MX', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                            {formatCurrency(selectedMilestone.presupuesto || 0)}
                           </p>
                         </div>
                         <div>
                           <p className={cn("text-xs", BUDGET_STYLES.textMuted)}>Ejecutado</p>
                           <p className={cn("text-base md:text-lg font-bold truncate", BUDGET_STYLES.text)}>
-                            ${(selectedMilestone.ejecutado || 0).toLocaleString('es-MX', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                            {formatCurrency(selectedMilestone.ejecutado || 0)}
                           </p>
                         </div>
                       </div>

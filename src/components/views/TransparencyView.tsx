@@ -15,6 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
+import { H1, H2, P } from '@/components/ui/typography';
+import { formatCurrency, formatNumber } from '@/lib/formatters';
 import { 
   Users, DollarSign, Building2, CheckCircle, Download, 
   ExternalLink, FileText, Eye, TrendingUp, MapPin, Loader2
@@ -32,20 +34,6 @@ export function TransparencyView() {
     page_size: 4,
     ordering: '-avance_fisico_pct',
   });
-
-  // Formateadores
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
-
-  const formatNumber = (value: number) => {
-    return new Intl.NumberFormat('es-MX').format(value);
-  };
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
@@ -81,24 +69,24 @@ export function TransparencyView() {
     <div className="space-y-6">
       {/* Header */}
       <div className="animate-fade-in">
-        <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
+        <H1>
           Portal de Transparencia
-        </h1>
-        <p className="text-muted-foreground mt-1">
+        </H1>
+        <P className="text-muted-foreground mt-1">
           Información pública sobre el uso de recursos y avance de proyectos
-        </p>
+        </P>
       </div>
 
       {/* Public Banner */}
       <div className="bg-gradient-to-r from-primary to-primary/80 rounded-xl p-6 text-primary-foreground animate-slide-up">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
-            <h2 className="font-display text-xl font-bold mb-2">
+            <H2 className="text-xl mb-2">
               Rendición de Cuentas 2024
-            </h2>
-            <p className="text-primary-foreground/80 text-sm">
+            </H2>
+            <P className="text-primary-foreground/80 text-sm">
               Consulta el destino de tus impuestos y el impacto de las obras públicas en tu comunidad.
-            </p>
+            </P>
           </div>
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" className="gap-2">

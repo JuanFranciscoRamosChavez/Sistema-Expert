@@ -6,6 +6,8 @@ interface Semaphores {
   tecnica: string;
   presupuestal: string;
   juridica: string;
+  temporal: string;
+  administrativa: string;
 }
 
 interface MatrixProject {

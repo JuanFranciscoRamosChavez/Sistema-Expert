@@ -27,6 +27,7 @@ import { Project } from '@/types';
 import { APP_COLORS, STATUS_COLORS } from '@/lib/theme';
 import { H3, P, Small, Subtitle } from '@/components/ui/typography';
 import { analyzeTerritorialCoverage, formatDate } from '@/lib/formatters';
+import { formatPercentage, formatNumber } from '@/lib/formatters';
 
 interface ProjectDetailProps {
 	project: Project;
@@ -181,7 +182,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
 								<div>
 									<Small className="block mb-1 opacity-70 text-xs">Beneficiarios Directos</Small>
 									<span className="font-semibold text-sm sm:text-base text-foreground flex items-center gap-1.5 sm:gap-2">
-										{new Intl.NumberFormat('es-MX').format(project.beneficiarios)} 
+									{formatNumber(project.beneficiarios)} 
 										<span className="text-[10px] sm:text-xs font-normal text-muted-foreground">personas</span>
 									</span>
 								</div>
@@ -255,7 +256,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
 								<div className="space-y-1">
 									<div className="flex justify-between text-xs">
 										<span className="text-muted-foreground">Avance Financiero</span>
-										<span className="font-semibold text-emerald-600">{project.avance_financiero_pct.toFixed(1)}%</span>
+									<span className="font-semibold text-emerald-600">{formatPercentage(project.avance_financiero_pct, 1)}</span>
 									</div>
 									<Progress value={project.avance_financiero_pct} className="h-1.5" indicatorColor="#10b981" />
 								</div>
@@ -279,7 +280,7 @@ export function ProjectDetail({ project }: ProjectDetailProps) {
 								<div className="space-y-2">
 									<div className="flex justify-between text-xs md:text-sm font-medium">
 										<span>Avance Físico Reportado</span>
-										<span style={{ color: statusColor }}>{project.avance.toFixed(1)}%</span>
+										<span style={{ color: statusColor }}>{formatPercentage(project.avance, 1)}</span>
 									</div>
 									<Progress value={project.avance} className="h-2.5" indicatorColor={statusColor} />
 								</div>

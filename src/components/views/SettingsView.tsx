@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { H1, P } from '@/components/ui/typography';
 import { 
   Select, 
   SelectContent, 
@@ -28,12 +29,12 @@ export function SettingsView() {
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div className="animate-fade-in">
-        <h1 className="font-display text-2xl md:text-3xl font-bold text-foreground">
+        <H1>
           Configuración
-        </h1>
-        <p className="text-muted-foreground mt-1">
+        </H1>
+        <P className="text-muted-foreground mt-1">
           Administra tu cuenta y preferencias del sistema
-        </p>
+        </P>
       </div>
 
       {/* Profile Settings */}

@@ -18,7 +18,7 @@ import {
 import { useRecentActivity } from "@/hooks/useRecentActivity";
 import { STATUS_COLORS, APP_COLORS } from "@/lib/theme"; // ✅ Import obligatorio del tema
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDate } from "@/lib/formatters";
+import { formatDate, formatPercentage } from "@/lib/formatters";
 
 // --- CONFIGURACIÓN VISUAL (Estática y fuera del componente) ---
 
@@ -126,7 +126,7 @@ export function RecentActivity() {
                           <>
                             <span className="text-[10px] text-muted-foreground/30">•</span>
                             <span className="text-xs font-semibold" style={{ color: statusColor }}>
-                              {project.avance_fisico_pct.toFixed(1)}%
+                              {formatPercentage(project.avance_fisico_pct, 1)}
                             </span>
                           </>
                         )}

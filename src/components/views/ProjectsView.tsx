@@ -42,7 +42,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
 import { Project } from '@/types/index';
-import { H1, Subtitle } from "@/components/ui/typography";
+import { H1, H3, Subtitle } from "@/components/ui/typography";
 import { APP_COLORS, STATUS_COLORS } from '@/lib/theme';
 import { useFilteredProjects } from '@/hooks/useFilteredProjects';
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -226,7 +226,7 @@ export function ProjectsView() {
 	if (error) return (
 		<div className="flex h-96 flex-col items-center justify-center gap-4 text-center">
 			<div className="bg-destructive/10 p-4 rounded-full"><AlertTriangle className="h-8 w-8 text-destructive" /></div>
-			<div className="space-y-1"><h3 className="font-semibold text-lg">Error de Carga</h3><p className="text-muted-foreground">{error}</p></div>
+			<div className="space-y-1"><H3>Error de Carga</H3><p className="text-muted-foreground">{error}</p></div>
 			<Button onClick={() => window.location.reload()} variant="outline">Reintentar</Button>
 		</div>
 	);
@@ -573,7 +573,7 @@ export function ProjectsView() {
 			) : (
 				<div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-border rounded-xl animate-in fade-in zoom-in-95">
 					<div className="bg-muted p-4 rounded-full mb-3"><Search className="h-8 w-8 text-muted-foreground" /></div>
-					<h3 className="font-semibold text-lg text-foreground">No se encontraron proyectos</h3>
+					<H3>No se encontraron proyectos</H3>
 					<p className="text-muted-foreground max-w-sm mt-1">Intenta ajustar los filtros de área, estatus o el término de búsqueda.</p>
 					<Button variant="link" onClick={clearFilters} className="mt-2 text-primary">Limpiar filtros</Button>
 				</div>

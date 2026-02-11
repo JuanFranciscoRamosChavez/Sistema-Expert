@@ -328,6 +328,23 @@ export const formatNumber = (value: number, locale = 'es-MX'): string => {
 };
 
 /**
+ * Formatea valores monetarios con símbolo de moneda
+ * @param value - Valor en pesos
+ * @param locale - Localización (default: es-MX)
+ * @param currency - Código de moneda (default: MXN)
+ * @returns Valor formateado con símbolo de moneda (ej: "$1,234,567")
+ */
+export const formatCurrency = (value: number, locale = 'es-MX', currency = 'MXN'): string => {
+	const num = sanitizeNumber(value);
+	return new Intl.NumberFormat(locale, {
+		style: 'currency',
+		currency: currency,
+		minimumFractionDigits: 0,
+		maximumFractionDigits: 0,
+	}).format(num);
+};
+
+/**
  * Formatea valores grandes de forma compacta (ej: 1.5M, 2.3B)
  * @param value - Valor numérico
  * @param locale - Localización (default: es-MX)

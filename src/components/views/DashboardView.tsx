@@ -9,7 +9,7 @@ import { KPICard } from '@/components/dashboard/KPICard';
 import { ProjectsStatusChart } from '@/components/dashboard/ProjectsStatusChart';
 import { BudgetChart } from '@/components/dashboard/BudgetChart';
 import { CriticalProjectsTable } from '@/components/dashboard/CriticalProjectsTable';
-import { H1, Subtitle } from "@/components/ui/typography";
+import { H1, H3, Subtitle } from "@/components/ui/typography";
 import { useDashboardData } from '@/hooks/useDashboardData';
 
 export function DashboardView() {
@@ -31,7 +31,7 @@ export function DashboardView() {
           <div className="p-4 rounded-full bg-destructive/10 text-destructive mb-1">
             <AlertTriangle className="h-8 w-8" />
           </div>
-          <h3 className="font-bold text-xl text-foreground">Error de conexión</h3>
+          <H3>Error de conexión</H3>
           <p className="text-sm text-muted-foreground leading-relaxed">
             No se pudo cargar la información del tablero.
           </p>

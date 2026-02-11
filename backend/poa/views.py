@@ -1016,18 +1016,25 @@ class RiskAnalysisView(APIView):
                 
                 # Incluir si: (viabilidad baja O media) Y prioridad >= 3
                 if (viabilidad_global in ['baja', 'media']) and score >= 3.0:
+                    # Usar responsable_operativo (nombre persona) o area_responsable (departamento)
+                    # Si se usa area_responsable, capitalizarla para que no esté todo en mayúsculas
+                    from .utils import capitalizar_texto
+                    responsable = obra.responsable_operativo if obra.responsable_operativo else capitalizar_texto(obra.area_responsable or '')
+                    
                     matrix_projects.append({
                         'id': obra.id,
                         'nombre': obra.programa,
-                        'responsable': obra.responsable_operativo or obra.area_responsable,
+                        'responsable': responsable,
                         'direccion': obra.area_responsable,
                         'viabilidad': viabilidad_global,
                         'prioridad_label': prioridad_label,
                         'score': score,
                         'semaphores': {
-                            'tecnica': obra.viabilidad_tecnica_semaforo or 'VERDE',
-                            'presupuestal': obra.viabilidad_presupuestal_semaforo or 'VERDE',
-                            'juridica': obra.viabilidad_juridica_semaforo or 'VERDE'
+                            'tecnica': (obra.viabilidad_tecnica_semaforo or 'GRIS').upper(),
+                            'presupuestal': (obra.viabilidad_presupuestal_semaforo or 'GRIS').upper(),
+                            'juridica': (obra.viabilidad_juridica_semaforo or 'GRIS').upper(),
+                            'temporal': (obra.viabilidad_temporal_semaforo or 'GRIS').upper(),
+                            'administrativa': (obra.viabilidad_administrativa_semaforo or 'GRIS').upper()
                         },
                         'riesgos': self._parse_riesgos(obra.problemas_identificados),
                         'avance': float(obra.avance_fisico_pct or 0),

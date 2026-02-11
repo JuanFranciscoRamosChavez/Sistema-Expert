@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { getStatusLabel, formatCurrency } from '@/lib/mockData';
+import { getStatusLabel } from '@/lib/mockData';
+import { formatCurrency } from '@/lib/formatters';
 import { useRiskAnalysis } from '@/hooks/useRiskAnalysis';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -46,22 +47,25 @@ const RISK_CATEGORIES = [
 // --- COMPONENTES AUXILIARES (MEMOIZADOS) ---
 
 const SemaphoreIcon = React.memo(({ label, status, Icon }: { label: string, status: string, Icon: any }) => {
-  // No mostrar semáforos GRIS (sin información)
-  if (!status || status === 'GRIS') return null;
+  // Normalizar el estado a mayúsculas para comparación case-insensitive
+  const statusUpper = (status || '').toUpperCase();
   
   // Definir colores según el estado del semáforo
-  const isRed = status === 'ROJO';
-  const isYellow = status === 'AMARILLO';
-  const isGreen = status === 'VERDE';
+  const isRed = statusUpper === 'ROJO';
+  const isYellow = statusUpper === 'AMARILLO';
+  const isGreen = statusUpper === 'VERDE';
+  const isGray = !statusUpper || statusUpper === 'GRIS';
   
   // Colores y estilos dinámicos
   const bgClass = isRed ? 'bg-red-100 dark:bg-red-950/30' : 
                   isYellow ? 'bg-amber-100 dark:bg-amber-950/30' : 
-                  'bg-emerald-100 dark:bg-emerald-950/30';
+                  isGreen ? 'bg-emerald-100 dark:bg-emerald-950/30' :
+                  'bg-gray-100 dark:bg-gray-950/30';
   
   const iconColor = isRed ? PRIORITY_COLORS.critica : 
                     isYellow ? PRIORITY_COLORS.alta : 
-                    '#16a34a'; // Verde para OK
+                    isGreen ? '#16a34a' :
+                    '#94a3b8'; // Gris para sin información
   
   return (
     <TooltipProvider delayDuration={300}>
@@ -72,7 +76,7 @@ const SemaphoreIcon = React.memo(({ label, status, Icon }: { label: string, stat
           </div>
         </TooltipTrigger>
         <TooltipContent side="top">
-          <p className="text-xs font-semibold">{label}: {status}</p>
+          <p className="text-xs font-semibold">{label}: {status || 'Sin datos'}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -142,13 +146,31 @@ const MobileProjectCard = React.memo(({ project, isExpanded, onToggle }: { proje
           </div>
         </div>
 
-        {/* Semáforos */}
-        <div className="flex items-center gap-2 flex-wrap pt-1 pb-1">
-          <SemaphoreIcon label="Técnica" status={project.semaphores.tecnica} Icon={Activity} />
-          <SemaphoreIcon label="Presupuestal" status={project.semaphores.presupuestal} Icon={Scale} />
-          <SemaphoreIcon label="Jurídica" status={project.semaphores.juridica} Icon={Gavel} />
-          <SemaphoreIcon label="Temporal" status={project.semaphores.temporal} Icon={Clock} />
-          <SemaphoreIcon label="Administrativa" status={project.semaphores.administrativa} Icon={Briefcase} />
+        {/* 5 Viabilidades */}
+        <div className="pt-2 border-t border-border/50">
+          <Small className="block mb-2 text-muted-foreground font-semibold">Viabilidades:</Small>
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-0.5">
+              <SemaphoreIcon label="Técnica" status={project.semaphores.tecnica} Icon={Activity} />
+              <span className="text-[9px] text-muted-foreground">Téc</span>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <SemaphoreIcon label="Presupuestal" status={project.semaphores.presupuestal} Icon={Scale} />
+              <span className="text-[9px] text-muted-foreground">Pre</span>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <SemaphoreIcon label="Jurídica" status={project.semaphores.juridica} Icon={Gavel} />
+              <span className="text-[9px] text-muted-foreground">Jur</span>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <SemaphoreIcon label="Temporal" status={project.semaphores.temporal} Icon={Clock} />
+              <span className="text-[9px] text-muted-foreground">Tmp</span>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <SemaphoreIcon label="Administrativa" status={project.semaphores.administrativa} Icon={Briefcase} />
+              <span className="text-[9px] text-muted-foreground">Adm</span>
+            </div>
+          </div>
         </div>
 
         {/* Expandible */}
@@ -389,12 +411,27 @@ export function RisksView() {
                           </div>
                         </td>
                         <td className="py-4 px-4 align-top">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <SemaphoreIcon label="Técnica" status={project.semaphores.tecnica} Icon={Activity} />
-                            <SemaphoreIcon label="Presupuestal" status={project.semaphores.presupuestal} Icon={Scale} />
-                            <SemaphoreIcon label="Jurídica" status={project.semaphores.juridica} Icon={Gavel} />
-                            <SemaphoreIcon label="Temporal" status={project.semaphores.temporal} Icon={Clock} />
-                            <SemaphoreIcon label="Administrativa" status={project.semaphores.administrativa} Icon={Briefcase} />
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-0.5">
+                              <SemaphoreIcon label="Técnica" status={project.semaphores.tecnica} Icon={Activity} />
+                              <span className="text-[10px] text-muted-foreground">Téc</span>
+                            </div>
+                            <div className="flex items-center gap-0.5">
+                              <SemaphoreIcon label="Presupuestal" status={project.semaphores.presupuestal} Icon={Scale} />
+                              <span className="text-[10px] text-muted-foreground">Pre</span>
+                            </div>
+                            <div className="flex items-center gap-0.5">
+                              <SemaphoreIcon label="Jurídica" status={project.semaphores.juridica} Icon={Gavel} />
+                              <span className="text-[10px] text-muted-foreground">Jur</span>
+                            </div>
+                            <div className="flex items-center gap-0.5">
+                              <SemaphoreIcon label="Temporal" status={project.semaphores.temporal} Icon={Clock} />
+                              <span className="text-[10px] text-muted-foreground">Tmp</span>
+                            </div>
+                            <div className="flex items-center gap-0.5">
+                              <SemaphoreIcon label="Administrativa" status={project.semaphores.administrativa} Icon={Briefcase} />
+                              <span className="text-[10px] text-muted-foreground">Adm</span>
+                            </div>
                           </div>
                         </td>
                       </tr>
