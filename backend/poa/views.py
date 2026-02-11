@@ -2,13 +2,17 @@ from rest_framework import viewsets, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
-from django.db.models import Sum, Q, F, Case, When, DecimalField, Count, Value
+from rest_framework.decorators import api_view
+from django.db.models import Sum, Q, F, Case, When, DecimalField, Count, Value, Avg
 from django.utils import timezone
+from django.http import FileResponse, HttpResponse
 from datetime import datetime, timedelta
+import os
 from .models import Obra
 from .serializers import ObraSerializer
 from .services import calculate_territorial_stats
 from .utils import normalizar_texto
+from .reportes import GeneradorReportes, ConfigReporte
 
 # ==================== PAGINACIÓN PERSONALIZADA ====================
 
@@ -1142,3 +1146,153 @@ class RiskAnalysisView(APIView):
             if r and len(r) > 3:  # Ignorar riesgos muy cortos (probablemente basura)
                 riesgos_limpios.append(r)
         return riesgos_limpios[:10]  # Limitar a 10 riesgos máximo
+
+
+# ==================== GENERACIÓN DE REPORTES ====================
+
+@api_view(['POST'])
+def generar_reporte(request):
+    """
+    Endpoint para generar reportes en PDF o Excel.
+    
+    Body JSON:
+    {
+        "tipo_reporte": "ejecutivo|cartera|presupuesto|riesgos|territorial|avance",
+        "formato": "pdf|excel|ambos",
+        "periodo": "mensual|trimestral|anual",
+        "fecha_corte": "YYYY-MM-DD"
+    }
+    """
+    try:
+        # Obtener parámetros
+        data = request.data
+        tipo_reporte = data.get('tipo_reporte', 'ejecutivo')
+        formato = data.get('formato', 'pdf')
+        periodo = data.get('periodo', 'mensual')
+        fecha_corte = data.get('fecha_corte', datetime.now().strftime('%Y-%m-%d'))
+        nombre_reporte = data.get('nombre_reporte', f'Reporte_{tipo_reporte}')
+        
+        # Configurar reporte
+        config = ConfigReporte(
+            nombre=nombre_reporte,
+            tipo_reporte=tipo_reporte,
+            periodo=periodo,
+            fecha_corte=fecha_corte,
+            formato_salida=formato,
+            incluir_graficos=data.get('incluir_graficos', True),
+            incluir_anexos=data.get('incluir_anexos', False)
+        )
+        
+        # Obtener obras (con filtros opcionales)
+        queryset = Obra.objects.all()
+        
+        # Filtrar por fecha si es necesario
+        if fecha_corte:
+            try:
+                fecha_obj = datetime.strptime(fecha_corte, '%Y-%m-%d').date()
+                queryset = queryset.filter(
+                    Q(fecha_inicio_prog__lte=fecha_obj) | Q(fecha_inicio_prog__isnull=True)
+                )
+            except:
+                pass
+        
+        obras = list(queryset.select_related().prefetch_related())
+        
+        # Calcular estadísticas
+        agregados = queryset.aggregate(
+            total_proyectos=Count('id'),
+            presupuesto_total=Sum(
+                Case(
+                    When(presupuesto_modificado__gt=0, then=F('presupuesto_modificado')),
+                    default=F('anteproyecto_total'),
+                    output_field=DecimalField()
+                )
+            ),
+            anteproyecto_total=Sum('anteproyecto_total'),
+            total_beneficiarios=Sum('beneficiarios_num'),
+            avance_promedio=Avg('avance_fisico_pct')
+        )
+        
+        # Análisis por estado
+        por_estado = {}
+        estados = queryset.values('estatus_general').annotate(
+            cantidad=Count('id'),
+            presupuesto=Sum('presupuesto_modificado')
+        )
+        for item in estados:
+            estado = item['estatus_general'] or 'Sin estado'
+            por_estado[estado] = item['cantidad']
+        
+        # Análisis territorial
+        por_alcaldia = {}
+        for obra in obras:
+            if obra.alcaldias:
+                alcaldias_list = str(obra.alcaldias).split(',')
+                for alc in alcaldias_list:
+                    alc_limpia = alc.strip()
+                    if alc_limpia:
+                        if alc_limpia not in por_alcaldia:
+                            por_alcaldia[alc_limpia] = {'cantidad': 0, 'presupuesto': 0}
+                        por_alcaldia[alc_limpia]['cantidad'] += 1
+                        por_alcaldia[alc_limpia]['presupuesto'] += obra.presupuesto_modificado or 0
+        
+        # Presupuesto ejecutado estimado
+        presupuesto_ejecutado = 0
+        for obra in obras:
+            if obra.presupuesto_modificado and obra.avance_financiero_pct:
+                presupuesto_ejecutado += (obra.presupuesto_modificado * obra.avance_financiero_pct / 100)
+        
+        estadisticas = {
+            'total_proyectos': agregados['total_proyectos'] or 0,
+            'presupuesto_total': float(agregados['presupuesto_total'] or 0),
+            'anteproyecto_total': float(agregados['anteproyecto_total'] or 0),
+            'total_beneficiarios': agregados['total_beneficiarios'] or 0,
+            'avance_promedio': float(agregados['avance_promedio'] or 0),
+            'presupuesto_ejecutado': presupuesto_ejecutado,
+            'por_estado': por_estado,
+            'por_alcaldia': por_alcaldia
+        }
+        
+        # Generar reporte
+        generador = GeneradorReportes()
+        
+        if formato == 'pdf':
+            archivo_path = generador.generar_pdf_reporte(obras, config, estadisticas)
+            
+            with open(archivo_path, 'rb') as f:
+                response = HttpResponse(f.read(), content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="{nombre_reporte}.pdf"'
+            
+            # Limpiar archivo temporal
+            os.unlink(archivo_path)
+            return response
+            
+        elif formato == 'excel':
+            archivo_path = generador.generar_excel_reporte(obras, config, estadisticas)
+            
+            with open(archivo_path, 'rb') as f:
+                response = HttpResponse(
+                    f.read(),
+                    content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                )
+                response['Content-Disposition'] = f'attachment; filename="{nombre_reporte}.xlsx"'
+            
+            # Limpiar archivo temporal
+            os.unlink(archivo_path)
+            return response
+        
+        else:
+            return Response({
+                'error': f'Formato no soportado: {formato}',
+                'formatos_validos': ['pdf', 'excel']
+            }, status=400)
+    
+    except Exception as e:
+        import traceback
+        print(f"❌ Error generando reporte: {str(e)}")
+        print(traceback.format_exc())
+        
+        return Response({
+            'error': str(e),
+            'detalle': 'Error interno al generar el reporte'
+        }, status=500)

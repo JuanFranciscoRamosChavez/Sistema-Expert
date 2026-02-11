@@ -7,7 +7,7 @@ import {
 	List as ListIcon, 
 	MapPin,
 	X,
-	SlidersHorizontal 
+	SlidersHorizontal
 } from 'lucide-react';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { ProjectDetail } from '@/components/projects/ProjectDetail';

@@ -11,7 +11,9 @@ from .views import (
     DynamicKPIsView,
     CriticalProjectsListView,
     TerritoryAggregationsView,
-    RiskAnalysisView
+    RiskAnalysisView,
+    # Reportes
+    generar_reporte
 )
 
 router = DefaultRouter()
@@ -31,4 +33,6 @@ urlpatterns = [
     path('v2/dashboard/critical-projects/', CriticalProjectsListView.as_view(), name='critical-projects'),
     path('v2/dashboard/territories/', TerritoryAggregationsView.as_view(), name='territories'),
     path('v2/dashboard/risk-analysis/', RiskAnalysisView.as_view(), name='risk-analysis'),
+    # Reportes
+    path('reportes/generar/', generar_reporte, name='generar-reporte'),
 ]
